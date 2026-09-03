@@ -1,51 +1,59 @@
-# Welcome to your Expo app 👋
+# Iskoci App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo + React Native app for local event discovery and community activity planning.
 
-## Get started
+## Stack
+- Expo SDK 54
+- React Native 0.81.5
+- Expo Router
+- Supabase JS SDK
+- TypeScript
 
-1. Install dependencies
+## Current verified status
+- Event feed implemented
+- Event detail screen implemented
+- Calendar tab implemented
+- Favorites and profile screens implemented
+- Dark mode implemented
+- Supabase integration added with demo fallback
+- SQL schema created in [supabase/schema.sql](supabase/schema.sql)
+- Seed script created in [supabase/seed.sql](supabase/seed.sql)
+- Project status file generated in [PROJECT_STATUS.md](PROJECT_STATUS.md)
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Environment setup
+Create a local `.env` file with:
 
 ```bash
-npm run reset-project
+EXPO_PUBLIC_SUPABASE_URL=your_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Local commands
 
-## Learn more
+```bash
+npm install
+npm run start
+npm run lint
+npm run sync-status
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## Database setup
+1. Open Supabase dashboard
+2. Open SQL Editor
+3. Run [supabase/schema.sql](supabase/schema.sql)
+4. Optional: run [supabase/seed.sql](supabase/seed.sql)
+5. Add RLS policies for public read access if needed
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Important notes
+- The app uses live Supabase data when env values are present.
+- If the env values are missing or the database is not ready, the app falls back to demo data.
+- Update the project status automatically by running `npm run sync-status` after schema or architecture changes.
 
-## Join the community
+## Team workflow
+Every significant project change should be documented in [PROJECT_STATUS.md](PROJECT_STATUS.md) by running:
 
-Join our community of developers creating universal apps.
+```bash
+npm run sync-status
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-# iskoci-app
+This makes the current stack and status visible to the whole team without needing to inspect several files manually.

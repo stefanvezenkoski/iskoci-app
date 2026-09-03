@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "events-app",
-    "slug": "events-app",
+    "name": "Iskoci",
+    "slug": "iskoci",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "eventsapp",
-    "userInterfaceStyle": "automatic",
+    "icon": "./assets/images/iskoci-logo.jpeg",
+    "scheme": "iskoci",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/iskoci-logo.jpeg",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",

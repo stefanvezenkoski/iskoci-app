@@ -1,112 +1,89 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+const discoveryList = [
+  { name: 'Live Music', emoji: '🎵', count: '24 events' },
+  { name: 'Food & Drinks', emoji: '🍽️', count: '18 events' },
+  { name: 'Art & Culture', emoji: '🎨', count: '12 events' },
+  { name: 'Outdoor Fun', emoji: '🌿', count: '9 events' },
+  { name: 'Sports', emoji: '🏀', count: '16 events' },
+  { name: 'Nightlife', emoji: '🍸', count: '20 events' },
+];
 
-export default function TabTwoScreen() {
+export default function DiscoverScreen() {
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
+
+  const palette = {
+    bg: isDark ? '#0b1020' : '#f4f6fb',
+    panel: isDark ? '#111b2c' : '#ffffff',
+    text: isDark ? '#edf3ff' : '#111827',
+    muted: isDark ? '#9aa9c2' : '#677287',
+    soft: isDark ? '#162133' : '#eef3ff',
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]}> 
+      <ScrollView style={[styles.container, { backgroundColor: palette.bg }]} showsVerticalScrollIndicator={false}>
+        <Text style={[styles.title, { color: palette.text }]}>Discover</Text>
+        <Text style={[styles.subtitle, { color: palette.muted }]}>Find what fits your vibe tonight</Text>
+
+        <View style={[styles.searchBar, { backgroundColor: palette.panel }]}> 
+          <Ionicons name="search-outline" size={18} color={palette.muted} />
+          <Text style={[styles.searchText, { color: palette.muted }]}>Search categories</Text>
+        </View>
+
+        <View style={styles.grid}>
+          {discoveryList.map((item) => (
+            <Pressable
+              key={item.name}
+              style={[styles.card, { backgroundColor: palette.panel, borderColor: palette.soft }]}
+            >
+              <Text style={styles.emoji}>{item.emoji}</Text>
+              <Text style={[styles.cardTitle, { color: palette.text }]}>{item.name}</Text>
+              <Text style={[styles.cardMeta, { color: palette.muted }]}>{item.count}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
+  safeArea: { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 18 },
+  title: { fontSize: 30, fontWeight: '800', marginTop: 22 },
+  subtitle: { fontSize: 14, marginTop: 6, marginBottom: 18 },
+  searchBar: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 2,
   },
+  searchText: { fontSize: 15 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 22,
+    gap: 10,
+  },
+  card: {
+    width: '48%',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    minHeight: 130,
+    justifyContent: 'space-between',
+  },
+  emoji: { fontSize: 28 },
+  cardTitle: { fontSize: 18, fontWeight: '700' },
+  cardMeta: { fontSize: 12, marginTop: 6 },
 });

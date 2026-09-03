@@ -1,98 +1,106 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Image, ImageBackground, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { fetchEvents } from '@/lib/supabase';
+
+const categories = ['All', 'Birthday', 'Music', 'Games', 'Anniversary', 'Workshop'];
+const attendeePhotos = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=80&q=80',
+  'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=80&q=80',
+];
+
+const eventDate = (date: string) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const eventTime = (date: string) => new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [events, setEvents] = useState<Record<string, any>[]>([]);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    let subscribed = true;
+    fetchEvents().then((items) => {
+      if (subscribed) {
+        setEvents(items);
+      }
+    });
+    return () => { subscribed = false; };
+  }, []);
+
+  const displayEvents = events;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" />
+      <View pointerEvents="none" style={styles.blueGlow} />
+      <View pointerEvents="none" style={styles.redGlow} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <View style={styles.logoFrame}><View style={styles.logoAura} /><Image accessibilityLabel="Iskoci logo" resizeMode="contain" source={require('../../assets/images/iskoci-logo.jpeg')} style={styles.logo} /></View>
+          <View style={styles.headerActions}>
+            <Pressable style={styles.bell}><Ionicons name="notifications-outline" size={23} color="#FAF9F8" /><View style={styles.alertDot} /></Pressable>
+            <Image style={styles.profile} source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80' }} />
+          </View>
+        </View>
+
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Каде{`\n`}искачаш денес?</Text>
+          <Pressable accessibilityLabel="Search events" style={styles.searchButton}><Ionicons name="search-outline" size={30} color="#161415" /></Pressable>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+          {categories.map((category) => <Pressable key={category} onPress={() => setActiveCategory(category)}><Text style={[styles.category, activeCategory === category && styles.categoryActive]}>{category}</Text></Pressable>)}
+        </ScrollView>
+
+        {displayEvents.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>No events available</Text>
+            <Text style={styles.emptyStateText}>Add events in Supabase to populate the feed.</Text>
+          </View>
+        ) : (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cardsRow} snapToInterval={290} decelerationRate="fast">
+              {displayEvents.map((event, index) => <EventCard key={event.id} event={event} index={index} />)}
+            </ScrollView>
+
+            <Text style={styles.upcoming}>Upcoming</Text>
+            <View style={styles.upcomingRow}>
+              {displayEvents.slice(0, 3).map((event) => <View key={event.id} style={styles.miniCard}><Image source={{ uri: event.image_url }} style={styles.miniImage} /><Text numberOfLines={1} style={styles.miniTitle}>{event.title}</Text></View>)}
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function EventCard({ event, index }: { event: Record<string, any>; index: number }) {
+  return (
+    <Pressable onPress={() => router.push({ pathname: '/event-details', params: { id: event.id } })} style={styles.card}>
+      <ImageBackground source={{ uri: event.image_url }} style={styles.cardImage} imageStyle={styles.cardImageRadius}>
+        <View style={styles.imageShade} />
+        <View style={styles.cardTop}><View style={styles.pricePill}><Text style={styles.priceText}>{event.price ? `${event.price} МКД` : 'Free'}</Text></View><Pressable style={styles.heart}><Ionicons name="heart" size={21} color="#fff" /></Pressable></View>
+        <View style={styles.cardBottom}>
+          <View style={styles.attendeeGroup}>{attendeePhotos.map((photo, photoIndex) => <Image key={photo} source={{ uri: photo }} style={[styles.attendee, { marginLeft: photoIndex ? -9 : 0 }]} />)}</View>
+          <Text style={styles.joined}>{event.rsvp_count ?? 150}+ Joined</Text>
+          <Text numberOfLines={2} style={styles.eventTitle}>{event.title}</Text>
+          <View style={styles.meta}><Ionicons name="calendar-outline" size={16} color="#F3F0ED" /><Text style={styles.metaText}>{eventDate(event.date_start)} · {eventTime(event.date_start)}</Text></View>
+          <View style={styles.meta}><Ionicons name="location" size={15} color="#F3F0ED" /><Text numberOfLines={1} style={styles.metaText}>{event.location}</Text></View>
+        </View>
+      </ImageBackground>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  safeArea: { flex: 1, backgroundColor: '#090c0c' }, content: { paddingTop: 17, paddingBottom: 25 },
+  blueGlow: { position: 'absolute', top: -130, left: -115, width: 340, height: 390, borderRadius: 200, backgroundColor: '#244552', opacity: .54 }, redGlow: { position: 'absolute', top: 128, left: -105, width: 340, height: 270, borderRadius: 180, backgroundColor: '#5B1618', opacity: .58 },
+  header: { marginHorizontal: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, logoFrame: { width: 136, height: 58, justifyContent: 'center', alignItems: 'center', transform: [{ skewX: '-9deg' }] }, logoAura: { position: 'absolute', width: 126, height: 49, borderRadius: 16, backgroundColor: '#10D4CB', opacity: .82, transform: [{ rotate: '-5deg' }] }, logo: { width: 128, height: 51, borderRadius: 17, backgroundColor: '#FFF', transform: [{ skewX: '9deg' }] }, headerActions: { flexDirection: 'row', gap: 9, alignItems: 'center' }, bell: { width: 57, height: 57, borderRadius: 29, backgroundColor: 'rgba(58,62,62,.72)', alignItems: 'center', justifyContent: 'center' }, alertDot: { position: 'absolute', right: 16, top: 16, height: 7, width: 7, borderRadius: 4, backgroundColor: '#D84243', borderWidth: 1, borderColor: '#fff' }, profile: { width: 55, height: 55, borderRadius: 28, borderWidth: 2, borderColor: '#C95A54' },
+  titleRow: { marginLeft: 25, marginTop: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, title: { color: '#FFF', fontSize: 45, lineHeight: 54, letterSpacing: -1.7, fontWeight: '800', maxWidth: 315, fontFamily: 'Climate Crisis' }, searchButton: { width: 80, height: 110, borderTopLeftRadius: 30, borderBottomLeftRadius: 30, backgroundColor: '#FCFCFC', alignItems: 'center', justifyContent: 'center' },
+  categoryRow: { paddingLeft: 25, gap: 28, paddingTop: 38, paddingBottom: 23 }, category: { color: '#908F8E', fontSize: 16, fontWeight: '500', fontFamily: 'Wix Madefor Text' }, categoryActive: { color: '#FFF', fontWeight: '800', fontFamily: 'Climate Crisis' },
+  cardsRow: { paddingLeft: 20, paddingRight: 4, gap: 13 }, card: { width: 290, height: 430, borderRadius: 31, overflow: 'hidden' }, cardImage: { flex: 1, justifyContent: 'space-between' }, cardImageRadius: { borderRadius: 31 }, imageShade: { ...StyleSheet.absoluteFillObject, borderRadius: 31, backgroundColor: 'rgba(5,5,5,.29)' }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', padding: 16 }, pricePill: { backgroundColor: 'rgba(61,57,56,.82)', paddingHorizontal: 17, paddingVertical: 11, borderRadius: 22 }, priceText: { color: '#FAF9F8', fontSize: 14, fontWeight: '600', fontFamily: 'Wix Madefor Text' }, heart: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(246,251,253,.39)' }, cardBottom: { alignItems: 'center', paddingHorizontal: 15, paddingBottom: 23, backgroundColor: 'rgba(26,19,16,.48)' }, attendeeGroup: { flexDirection: 'row', marginTop: -42, marginBottom: 8 }, attendee: { height: 31, width: 31, borderRadius: 16, borderWidth: 1.5, borderColor: '#B68E6D' }, joined: { color: '#FFF', fontWeight: '600', fontSize: 13, marginBottom: 10, fontFamily: 'Wix Madefor Text' }, eventTitle: { color: '#FFF', fontSize: 29, lineHeight: 35, letterSpacing: -.7, fontWeight: '800', textAlign: 'center', marginBottom: 12, fontFamily: 'Climate Crisis' }, meta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5, maxWidth: '100%' }, metaText: { color: '#F0ECE8', fontSize: 13, fontFamily: 'Wix Madefor Text' },
+  upcoming: { color: '#FFF', marginLeft: 25, marginTop: 20, marginBottom: 15, fontSize: 20, fontWeight: '800', fontFamily: 'Climate Crisis' }, upcomingRow: { flexDirection: 'row', gap: 11, paddingHorizontal: 20 }, miniCard: { width: 126, height: 108, borderRadius: 22, overflow: 'hidden', backgroundColor: '#262322' }, miniImage: { width: '100%', height: 72, opacity: .7 }, miniTitle: { paddingHorizontal: 9, paddingTop: 6, color: '#FFF', fontSize: 11, fontWeight: '700', fontFamily: 'Wix Madefor Text' }, emptyState: { marginHorizontal: 25, marginTop: 20, padding: 20, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.05)' }, emptyStateTitle: { color: '#FFF', fontSize: 18, fontWeight: '700', marginBottom: 6, fontFamily: 'Climate Crisis' }, emptyStateText: { color: '#B7B2AF', fontSize: 14, fontFamily: 'Wix Madefor Text' },
 });
