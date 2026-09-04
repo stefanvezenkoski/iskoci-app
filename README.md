@@ -1,59 +1,97 @@
-# Iskoci App
+# Iskoci
 
-Expo + React Native app for local event discovery and community activity planning.
+Iskoci is an Expo + React Native app for discovering local events, activities, and places to go in Macedonia.
 
 ## Stack
+
 - Expo SDK 54
 - React Native 0.81.5
 - Expo Router
-- Supabase JS SDK
 - TypeScript
+- Supabase JS SDK for event data
+- Clerk for email/password authentication
 
-## Current verified status
-- Event feed implemented
-- Event detail screen implemented
-- Calendar tab implemented
-- Favorites and profile screens implemented
-- Dark mode implemented
-- Supabase integration added with demo fallback
-- SQL schema created in [supabase/schema.sql](supabase/schema.sql)
-- Seed script created in [supabase/seed.sql](supabase/seed.sql)
-- Project status file generated in [PROJECT_STATUS.md](PROJECT_STATUS.md)
+## Features
+
+- Home event feed with Supabase data
+- Category filtering for Sports, Outings, Coffee Culture, and Community
+- Event details with date, location, price, guest count, and RSVP actions
+- Calendar and agenda view
+- Favorites and profile tabs
+- Clerk sign-up with email verification code
+- Clerk sign-in and sign-out
+- Clerk profile avatar with initials fallback
+- Dark visual system with teal and violet brand accents
+- Static full-screen loading artwork while the app initializes
 
 ## Environment setup
-Create a local `.env` file with:
+
+Copy `.env.example` to `.env` and add the development values for Supabase and Clerk:
 
 ```bash
 EXPO_PUBLIC_SUPABASE_URL=your_project_url
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_publishable_key_here
 ```
 
-## Local commands
+Never commit `.env`. Clerk CLI can pull the linked development values with:
+
+```bash
+clerk env pull
+```
+
+The Clerk application must have email and password authentication enabled. Phone number is optional for signup.
+
+## Install and run
 
 ```bash
 npm install
 npm run start
+```
+
+Useful commands:
+
+```bash
+npm run ios
+npm run android
+npm run web
 npm run lint
 npm run sync-status
 ```
 
-## Database setup
-1. Open Supabase dashboard
-2. Open SQL Editor
-3. Run [supabase/schema.sql](supabase/schema.sql)
-4. Optional: run [supabase/seed.sql](supabase/seed.sql)
-5. Add RLS policies for public read access if needed
+## Supabase setup
 
-## Important notes
-- The app uses live Supabase data when env values are present.
-- If the env values are missing or the database is not ready, the app falls back to demo data.
-- Update the project status automatically by running `npm run sync-status` after schema or architecture changes.
+1. Open the Supabase dashboard and select the project.
+2. Open **SQL Editor**.
+3. Run [supabase/schema.sql](supabase/schema.sql).
+4. Run [supabase/seed.sql](supabase/seed.sql) for starter users, categories, and events.
+5. Confirm the required RLS read policies are enabled for the client queries.
 
-## Team workflow
-Every significant project change should be documented in [PROJECT_STATUS.md](PROJECT_STATUS.md) by running:
+Events reference `public.categories` through `category_id`. The app loads the related English category name and filters the home feed against it.
+
+## Clerk CLI setup
+
+The project is linked to the Iskoci Clerk application. To authenticate the CLI on a new machine:
+
+```bash
+npm install -g clerk
+clerk auth login
+clerk link --app app_3Iq8WYG9or4gQjWCHcBmRHR6Ubh
+clerk env pull
+clerk doctor
+```
+
+For local installs without global npm permissions, install Clerk under a user-local prefix and run the binary from that prefix.
+
+## Project status
+
+The task registry is maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md). Run this after schema or architecture changes:
 
 ```bash
 npm run sync-status
 ```
 
-This makes the current stack and status visible to the whole team without needing to inspect several files manually.
+## Database files
+
+- [supabase/schema.sql](supabase/schema.sql): tables, constraints, indexes, and category seed records
+- [supabase/seed.sql](supabase/seed.sql): development users, categories, and events
