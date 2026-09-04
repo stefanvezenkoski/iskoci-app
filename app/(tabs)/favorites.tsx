@@ -12,11 +12,11 @@ export default function FavoritesScreen() {
   const isDark = scheme === 'dark';
 
   const palette = {
-    bg: isDark ? '#0b1020' : '#f4f6fb',
-    panel: isDark ? '#111b2c' : '#ffffff',
+    bg: isDark ? '#090C0C' : '#F4F8F7',
+    panel: isDark ? '#151B1A' : '#ffffff',
     text: isDark ? '#edf3ff' : '#111827',
-    muted: isDark ? '#9aa9c2' : '#667085',
-    soft: isDark ? '#1a2638' : '#eef3ff',
+    muted: isDark ? '#A7B0AE' : '#667572',
+    soft: isDark ? '#203C3A' : '#E7F5F3',
   };
 
   return (

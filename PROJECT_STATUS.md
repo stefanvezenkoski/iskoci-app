@@ -1,6 +1,6 @@
 # Project task registry
 
-Updated: 2026-09-03T23:21:36.725Z
+Updated: 2026-09-04T00:41:52.442Z
 
 ## Task tracking
 
@@ -18,14 +18,14 @@ Updated: 2026-09-03T23:21:36.725Z
 | profile-screen | MVP UI | Profile screen | ✅ Done | app/(tabs)/profile.tsx | User profile screen is in place. |
 | dark-mode | MVP UI | Dark mode | ✅ Done | app/_layout.tsx | Theme supports dark mode across screens. |
 | supabase-live-fetch | Data Flow | Live Supabase fetch for events | ✅ Done | lib/supabase.ts | App reads Supabase when env values are set; fallback to demo data remains enabled. |
-| rls-policies | Data Flow | RLS policies | ✅ Done | supabase/schema.sql | Need public read policies for events/categories/users if Supabase blocks anon access. |
+| rls-policies | Data Flow | RLS policies | ⬜ Planned | supabase/schema.sql | Need public read policies for events/categories/users if Supabase blocks anon access. |
 | rsvp-flow | User Features | RSVP flow | ✅ Done | app/event-details.tsx | Create and update attendee check-ins and counts. |
 | create-event-form | User Features | Create event form | ✅ Done | app/(tabs)/profile.tsx | Organizers need a form for publishing new events. |
 | favorites-persistence | User Features | Favorites persistence | ✅ Done | app/(tabs)/favorites.tsx | Save favorites to Supabase or local storage. |
-| business-profiles | Business Features | Business profiles | ✅ Done | PLAN.md | Create business / venue pages and verification workflow. |
-| reviews-ratings | Business Features | Reviews and ratings | ✅ Done | supabase/schema.sql | Need review submission and average rating logic. |
-| admin-moderation | Admin Features | Admin moderation panel | ✅ Done | PLAN.md | Pending reports and moderation queue for content decisions. |
-| notifications | Admin Features | Notifications | ✅ Done | supabase/schema.sql | New event and report update notifications should be sent. |
+| business-profiles | Business Features | Business profiles | ⬜ Planned | PLAN.md | Create business / venue pages and verification workflow. |
+| reviews-ratings | Business Features | Reviews and ratings | ⬜ Planned | supabase/schema.sql | Need review submission and average rating logic. |
+| admin-moderation | Admin Features | Admin moderation panel | ⬜ Planned | PLAN.md | Pending reports and moderation queue for content decisions. |
+| notifications | Admin Features | Notifications | ⬜ Planned | supabase/schema.sql | New event and report update notifications should be sent. |
 | production-supabase | Launch | Production Supabase setup | ✅ Done | .env.example, supabase/schema.sql | Apply real project URL + anon key, final schema, and RLS policies. |
 | qa-bug-pass | Launch | App QA and bug pass | ✅ Done | app/(tabs)/index.tsx | Run device testing and finalize mobile polish before launch. |
 

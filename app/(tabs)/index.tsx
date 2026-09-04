@@ -1,3 +1,4 @@
+import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -5,7 +6,13 @@ import { Image, ImageBackground, Pressable, SafeAreaView, ScrollView, StatusBar,
 
 import { fetchEvents } from '@/lib/supabase';
 
-const categories = ['All', 'Birthday', 'Music', 'Games', 'Anniversary', 'Workshop'];
+const categories = [
+  'All',
+  'Sports',
+  'Outings',
+  'Coffee Culture',
+  'Community',
+];
 const attendeePhotos = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80',
@@ -30,7 +37,9 @@ export default function HomeScreen() {
     return () => { subscribed = false; };
   }, []);
 
-  const displayEvents = events;
+  const displayEvents = activeCategory === 'All'
+    ? events
+    : events.filter((event) => event.category?.toLowerCase() === activeCategory.toLowerCase());
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,7 +51,7 @@ export default function HomeScreen() {
           <View style={styles.logoFrame}><View style={styles.logoAura} /><Image accessibilityLabel="Iskoci logo" resizeMode="contain" source={require('../../assets/images/iskoci-logo.jpeg')} style={styles.logo} /></View>
           <View style={styles.headerActions}>
             <Pressable style={styles.bell}><Ionicons name="notifications-outline" size={23} color="#FAF9F8" /><View style={styles.alertDot} /></Pressable>
-            <Image style={styles.profile} source={{ uri: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80' }} />
+            <Pressable accessibilityLabel="Open profile" onPress={() => router.push('/profile')}><UserAvatar /></Pressable>
           </View>
         </View>
 
@@ -57,8 +66,8 @@ export default function HomeScreen() {
 
         {displayEvents.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>No events available</Text>
-            <Text style={styles.emptyStateText}>Add events in Supabase to populate the feed.</Text>
+            <Text style={styles.emptyStateTitle}>No events in this category</Text>
+            <Text style={styles.emptyStateText}>Try another category or add a matching event in Supabase.</Text>
           </View>
         ) : (
           <>
@@ -75,6 +84,23 @@ export default function HomeScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function UserAvatar() {
+  if (!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    return <View style={[styles.profile, styles.profileFallback]}><Text style={styles.profileInitials}>SN</Text></View>;
+  }
+
+  return <ClerkUserAvatar />;
+}
+
+function ClerkUserAvatar() {
+  const { user } = useUser();
+  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}` || user?.username?.slice(0, 2).toUpperCase() || 'ME';
+
+  return user?.imageUrl
+    ? <Image accessibilityLabel="Profile photo" style={styles.profile} source={{ uri: user.imageUrl }} />
+    : <View style={[styles.profile, styles.profileFallback]}><Text style={styles.profileInitials}>{initials.toUpperCase()}</Text></View>;
 }
 
 function EventCard({ event, index }: { event: Record<string, any>; index: number }) {
@@ -97,8 +123,8 @@ function EventCard({ event, index }: { event: Record<string, any>; index: number
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#090c0c' }, content: { paddingTop: 17, paddingBottom: 25 },
-  blueGlow: { position: 'absolute', top: -130, left: -115, width: 340, height: 390, borderRadius: 200, backgroundColor: '#244552', opacity: .54 }, redGlow: { position: 'absolute', top: 128, left: -105, width: 340, height: 270, borderRadius: 180, backgroundColor: '#5B1618', opacity: .58 },
-  header: { marginHorizontal: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, logoFrame: { width: 136, height: 58, justifyContent: 'center', alignItems: 'center', transform: [{ skewX: '-9deg' }] }, logoAura: { position: 'absolute', width: 126, height: 49, borderRadius: 16, backgroundColor: '#10D4CB', opacity: .82, transform: [{ rotate: '-5deg' }] }, logo: { width: 128, height: 51, borderRadius: 17, backgroundColor: '#FFF', transform: [{ skewX: '9deg' }] }, headerActions: { flexDirection: 'row', gap: 9, alignItems: 'center' }, bell: { width: 57, height: 57, borderRadius: 29, backgroundColor: 'rgba(58,62,62,.72)', alignItems: 'center', justifyContent: 'center' }, alertDot: { position: 'absolute', right: 16, top: 16, height: 7, width: 7, borderRadius: 4, backgroundColor: '#D84243', borderWidth: 1, borderColor: '#fff' }, profile: { width: 55, height: 55, borderRadius: 28, borderWidth: 2, borderColor: '#C95A54' },
+  blueGlow: { position: 'absolute', top: -130, left: -115, width: 340, height: 390, borderRadius: 200, backgroundColor: '#63E6DC', opacity: .18 }, redGlow: { position: 'absolute', top: 128, left: -105, width: 340, height: 270, borderRadius: 180, backgroundColor: '#A96BDE', opacity: .2 },
+  header: { marginHorizontal: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, logoFrame: { width: 136, height: 58, justifyContent: 'center', alignItems: 'center', transform: [{ skewX: '-9deg' }] }, logoAura: { position: 'absolute', width: 126, height: 49, borderRadius: 16, backgroundColor: '#63E6DC', opacity: .82, transform: [{ rotate: '-5deg' }] }, logo: { width: 128, height: 51, borderRadius: 17, backgroundColor: '#FFF', transform: [{ skewX: '9deg' }] }, headerActions: { flexDirection: 'row', gap: 9, alignItems: 'center' }, bell: { width: 57, height: 57, borderRadius: 29, backgroundColor: 'rgba(58,62,62,.72)', alignItems: 'center', justifyContent: 'center' }, alertDot: { position: 'absolute', right: 16, top: 16, height: 7, width: 7, borderRadius: 4, backgroundColor: '#A96BDE', borderWidth: 1, borderColor: '#fff' }, profile: { width: 55, height: 55, borderRadius: 28, borderWidth: 2, borderColor: '#63E6DC' }, profileFallback: { backgroundColor: '#63E6DC', alignItems: 'center', justifyContent: 'center' }, profileInitials: { color: '#08100F', fontSize: 16, fontWeight: '800', fontFamily: 'Wix Madefor Text' },
   titleRow: { marginLeft: 25, marginTop: 39, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, title: { color: '#FFF', fontSize: 45, lineHeight: 54, letterSpacing: -1.7, fontWeight: '800', maxWidth: 315, fontFamily: 'Climate Crisis' }, searchButton: { width: 80, height: 110, borderTopLeftRadius: 30, borderBottomLeftRadius: 30, backgroundColor: '#FCFCFC', alignItems: 'center', justifyContent: 'center' },
   categoryRow: { paddingLeft: 25, gap: 28, paddingTop: 38, paddingBottom: 23 }, category: { color: '#908F8E', fontSize: 16, fontWeight: '500', fontFamily: 'Wix Madefor Text' }, categoryActive: { color: '#FFF', fontWeight: '800', fontFamily: 'Climate Crisis' },
   cardsRow: { paddingLeft: 20, paddingRight: 4, gap: 13 }, card: { width: 290, height: 430, borderRadius: 31, overflow: 'hidden' }, cardImage: { flex: 1, justifyContent: 'space-between' }, cardImageRadius: { borderRadius: 31 }, imageShade: { ...StyleSheet.absoluteFillObject, borderRadius: 31, backgroundColor: 'rgba(5,5,5,.29)' }, cardTop: { flexDirection: 'row', justifyContent: 'space-between', padding: 16 }, pricePill: { backgroundColor: 'rgba(61,57,56,.82)', paddingHorizontal: 17, paddingVertical: 11, borderRadius: 22 }, priceText: { color: '#FAF9F8', fontSize: 14, fontWeight: '600', fontFamily: 'Wix Madefor Text' }, heart: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: 'rgba(246,251,253,.39)' }, cardBottom: { alignItems: 'center', paddingHorizontal: 15, paddingBottom: 23, backgroundColor: 'rgba(26,19,16,.48)' }, attendeeGroup: { flexDirection: 'row', marginTop: -42, marginBottom: 8 }, attendee: { height: 31, width: 31, borderRadius: 16, borderWidth: 1.5, borderColor: '#B68E6D' }, joined: { color: '#FFF', fontWeight: '600', fontSize: 13, marginBottom: 10, fontFamily: 'Wix Madefor Text' }, eventTitle: { color: '#FFF', fontSize: 29, lineHeight: 35, letterSpacing: -.7, fontWeight: '800', textAlign: 'center', marginBottom: 12, fontFamily: 'Climate Crisis' }, meta: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5, maxWidth: '100%' }, metaText: { color: '#F0ECE8', fontSize: 13, fontFamily: 'Wix Madefor Text' },

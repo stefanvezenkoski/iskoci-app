@@ -12,10 +12,10 @@ const days = [
 ];
 
 const events = [
-  { time: '08:00 PM', title: 'Sunset Cinema', color: '#ff8a65' },
-  { time: '07:30 PM', title: 'Café Social', color: '#7c9cff' },
-  { time: '09:00 PM', title: 'Live DJ Set', color: '#a78bfa' },
-  { time: '04:00 PM', title: 'Beach Volleyball', color: '#66d9c3' },
+  { time: '08:00 PM', title: 'Sunset Cinema', color: '#A96BDE' },
+  { time: '07:30 PM', title: 'Café Social', color: '#63E6DC' },
+  { time: '09:00 PM', title: 'Live DJ Set', color: '#A96BDE' },
+  { time: '04:00 PM', title: 'Beach Volleyball', color: '#63E6DC' },
 ];
 
 export default function CalendarScreen() {
@@ -23,11 +23,11 @@ export default function CalendarScreen() {
   const isDark = scheme === 'dark';
 
   const palette = {
-    bg: isDark ? '#0b1020' : '#f4f6fb',
-    panel: isDark ? '#111b2c' : '#ffffff',
+    bg: isDark ? '#090C0C' : '#F4F8F7',
+    panel: isDark ? '#151B1A' : '#ffffff',
     text: isDark ? '#edf3ff' : '#111827',
-    muted: isDark ? '#9aa9c2' : '#667085',
-    soft: isDark ? '#1a2638' : '#edf3ff',
+    muted: isDark ? '#A7B0AE' : '#667572',
+    soft: isDark ? '#203C3A' : '#E7F5F3',
   };
 
   return (
@@ -43,9 +43,9 @@ export default function CalendarScreen() {
 
           <View style={styles.daysRow}>
             {days.map((day, index) => (
-              <Pressable key={day.num} style={[styles.dayCell, index === 3 && { backgroundColor: '#f7b267' }]}>
-                <Text style={[styles.dayLabel, { color: index === 3 ? '#111827' : palette.muted }]}>{day.label}</Text>
-                <Text style={[styles.dayNumber, { color: index === 3 ? '#111827' : palette.text }]}>{day.num}</Text>
+              <Pressable key={day.num} style={[styles.dayCell, index === 3 && { backgroundColor: '#63E6DC' }]}>
+                <Text style={[styles.dayLabel, { color: index === 3 ? '#08100F' : palette.muted }]}>{day.label}</Text>
+                <Text style={[styles.dayNumber, { color: index === 3 ? '#08100F' : palette.text }]}>{day.num}</Text>
               </Pressable>
             ))}
           </View>
@@ -53,7 +53,7 @@ export default function CalendarScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>This week</Text>
-          <Text style={{ color: '#6e7efc', fontWeight: '700' }}>View all</Text>
+          <Text style={{ color: '#63E6DC', fontWeight: '700' }}>View all</Text>
         </View>
 
         {events.map((event) => (

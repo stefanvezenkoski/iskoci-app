@@ -29,13 +29,13 @@ export default function EventDetailsScreen() {
   }, [id]);
 
   const palette = {
-    bg: '#060505',
-    panel: '#131212',
+    bg: '#090C0C',
+    panel: '#151B1A',
     text: '#fbfbfb',
     muted: '#9c9997',
-    accent: '#c47b60',
-    soft: '#242120',
-    peach: '#c47b60',
+    accent: '#63E6DC',
+    soft: '#203C3A',
+    peach: '#A96BDE',
   };
 
   if (!event) {
@@ -243,13 +243,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 18,
-    backgroundColor: 'rgba(127, 146, 193, 0.08)',
+    backgroundColor: 'rgba(99, 230, 220, 0.08)',
   },
   hostAvatar: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: '#ffb86a',
+    backgroundColor: '#A96BDE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,

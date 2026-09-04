@@ -2,11 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 const discoveryList = [
+  { name: 'Sports', emoji: '🏀', count: '16 events' },
+  { name: 'Outings', emoji: '🎉', count: '20 events' },
+  { name: 'Coffee Culture', emoji: '☕', count: '18 events' },
+  { name: 'Community', emoji: '🤝', count: '12 events' },
   { name: 'Live Music', emoji: '🎵', count: '24 events' },
   { name: 'Food & Drinks', emoji: '🍽️', count: '18 events' },
   { name: 'Art & Culture', emoji: '🎨', count: '12 events' },
   { name: 'Outdoor Fun', emoji: '🌿', count: '9 events' },
-  { name: 'Sports', emoji: '🏀', count: '16 events' },
   { name: 'Nightlife', emoji: '🍸', count: '20 events' },
 ];
 
@@ -15,11 +18,11 @@ export default function DiscoverScreen() {
   const isDark = scheme === 'dark';
 
   const palette = {
-    bg: isDark ? '#0b1020' : '#f4f6fb',
-    panel: isDark ? '#111b2c' : '#ffffff',
+    bg: isDark ? '#090C0C' : '#F4F8F7',
+    panel: isDark ? '#151B1A' : '#ffffff',
     text: isDark ? '#edf3ff' : '#111827',
-    muted: isDark ? '#9aa9c2' : '#677287',
-    soft: isDark ? '#162133' : '#eef3ff',
+    muted: isDark ? '#A7B0AE' : '#677572',
+    soft: isDark ? '#203C3A' : '#E7F5F3',
   };
 
   return (

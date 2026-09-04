@@ -21,6 +21,7 @@ const normalizeEvent = (event: Record<string, any> | null) => {
   return {
     ...event,
     image_url: event.featured_image ?? event.image_url ?? '',
+    category: event.categories?.name_en ?? event.category ?? '',
   };
 };
 
@@ -30,7 +31,10 @@ export async function fetchEvents() {
     return [];
   }
 
-  const { data, error } = await supabase.from('events').select('*').order('date_start', { ascending: true });
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, categories(name_en, name_mk)')
+    .order('date_start', { ascending: true });
 
   if (error) {
     console.warn('Supabase fetchEvents error:', error.message);
