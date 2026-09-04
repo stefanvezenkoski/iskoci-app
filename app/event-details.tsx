@@ -21,7 +21,6 @@ export default function EventDetailsScreen() {
     const targetId = Array.isArray(id) ? id[0] : id;
 
     if (!targetId) {
-      setEvent(null);
       return;
     }
 

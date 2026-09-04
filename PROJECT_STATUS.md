@@ -32,8 +32,8 @@ Updated: 2026-09-04T00:47:15.833Z
 ## Stack
 - App: events-app
 - Framework: Expo + React Native + Expo Router
-- Expo: ~54.0.36
-- React Native: 0.81.5
+- Expo: ^57.0.0
+- React Native: 0.86.3
 - Supabase SDK: ^2.112.4
 
 ## How this works

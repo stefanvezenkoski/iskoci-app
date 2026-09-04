@@ -4,8 +4,8 @@ Iskoci is an Expo + React Native app for discovering local events, activities, a
 
 ## Stack
 
-- Expo SDK 54
-- React Native 0.81.5
+- Expo SDK 57
+- React Native 0.86.3
 - Expo Router
 - TypeScript
 - Supabase JS SDK for event data
