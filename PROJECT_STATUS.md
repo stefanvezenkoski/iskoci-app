@@ -1,6 +1,6 @@
 # Project task registry
 
-Updated: 2026-09-04T00:44:57.551Z
+Updated: 2026-09-04T00:47:15.833Z
 
 ## Task tracking
 
@@ -26,7 +26,7 @@ Updated: 2026-09-04T00:44:57.551Z
 | reviews-ratings | Business Features | Reviews and ratings | ⬜ Planned | supabase/schema.sql | Need review submission and average rating logic. |
 | admin-moderation | Admin Features | Admin moderation panel | ⬜ Planned | PLAN.md | Pending reports and moderation queue for content decisions. |
 | notifications | Admin Features | Notifications | ⬜ Planned | supabase/schema.sql | New event and report update notifications should be sent. |
-| production-supabase | Launch | Production Supabase setup | ⬜ Planned | .env.example, supabase/schema.sql | Apply real project URL + anon key, final schema, and RLS policies. |
+| production-supabase | Launch | Production Supabase setup | ✅ Done | .env.example, supabase/schema.sql | Apply real project URL + anon key, final schema, and RLS policies. |
 | qa-bug-pass | Launch | App QA and bug pass | ⬜ Planned | app/(tabs)/index.tsx | Run device testing and finalize mobile polish before launch. |
 
 ## Stack
