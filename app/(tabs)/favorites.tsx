@@ -24,7 +24,11 @@ export default function FavoritesScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
       <AmbientBackground />
-      <ScrollView style={[styles.container, { backgroundColor: palette.bg }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: palette.bg }]}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.title, { color: palette.text }]}>Favorites</Text>
 
         {favorites.map((item) => (
@@ -47,6 +51,7 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 18 },
+  contentContainer: { paddingBottom: 140 },
   title: { fontSize: 30, fontWeight: '800', marginTop: 24, marginBottom: 18 },
   card: {
     flexDirection: 'row',

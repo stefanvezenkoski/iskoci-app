@@ -14,32 +14,142 @@ import {
   Text,
   View,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
 import { fetchEvents } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// ── Dark map theme for Android Google Maps ──
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#090E0D' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#7E9692' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#090E0D' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#162825' }] },
-  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#3A524D' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#0E1716' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#12201D' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#4E6A66' }] },
-  { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#0F2720' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#182926' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#101B19' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1F3A35' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#132622' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#142522' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#081211' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#2B4642' }] },
-];
+// ── Leaflet + OpenStreetMap map, rendered in a WebView ──
+// No Apple Maps / Google Maps / Mapbox SDK involved anywhere, and it still runs inside plain Expo Go.
+const MAP_HTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #060505; overflow: hidden; }
+  .leaflet-control-zoom { display: none; }
+  .leaflet-control-attribution {
+    background: rgba(9, 12, 12, 0.6) !important;
+    color: rgba(216, 213, 211, 0.85) !important;
+    font-size: 9px !important;
+  }
+  .leaflet-control-attribution a { color: #63E6DC !important; }
+  .marker-pin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 15px;
+    border: 2px solid #0B1010;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+  }
+  .marker-pin.selected {
+    width: 38px;
+    height: 38px;
+    border-radius: 19px;
+    border: 2.5px solid #ffffff;
+  }
+  .marker-pin svg { display: block; }
+  .user-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: #63E6DC;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 8px rgba(99, 230, 220, 0.8);
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  var map = L.map('map', { zoomControl: false, attributionControl: true }).setView([41.9981, 21.4254], 13);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${process.env.EXPO_PUBLIC_CARTO_API_KEY ?? ''}', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+
+  // The WebView can report a stale size on first layout, which makes Leaflet
+  // cache the wrong container size and only render tiles for part of the screen.
+  function fixSize() { map.invalidateSize(); }
+  setTimeout(fixSize, 200);
+  setTimeout(fixSize, 600);
+  window.addEventListener('resize', fixSize);
+
+  var markers = {};
+  var userMarker = null;
+
+  function post(type, payload) {
+    window.ReactNativeWebView.postMessage(JSON.stringify(Object.assign({ type: type }, payload || {})));
+  }
+
+  function pinIcon(color, glyph, selected) {
+    var size = selected ? 38 : 30;
+    var iconPx = selected ? 18 : 14;
+    var svgTag = '<i data-lucide="' + glyph + '" style="color:#090C0C" width="' + iconPx + '" height="' + iconPx + '"></i>';
+    return L.divIcon({
+      className: '',
+      html: '<div class="marker-pin' + (selected ? ' selected' : '') + '" style="background:' + color + '">' + svgTag + '</div>',
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size],
+      popupAnchor: [0, -size]
+    });
+  }
+
+  window.setMarkers = function (json) {
+    var events = JSON.parse(json);
+    var seen = {};
+    events.forEach(function (ev) {
+      seen[ev.id] = true;
+      var icon = pinIcon(ev.color, ev.glyph, ev.selected);
+      if (markers[ev.id]) {
+        markers[ev.id].setLatLng([ev.latitude, ev.longitude]);
+        markers[ev.id].setIcon(icon);
+      } else {
+        var m = L.marker([ev.latitude, ev.longitude], { icon: icon });
+        m.on('click', function () { post('markerPress', { id: ev.id }); });
+        m.addTo(map);
+        markers[ev.id] = m;
+      }
+    });
+    Object.keys(markers).forEach(function (id) {
+      if (!seen[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+      }
+    });
+    if (window.lucide) window.lucide.createIcons();
+  };
+
+  window.setUserLocation = function (lat, lng) {
+    if (userMarker) {
+      userMarker.setLatLng([lat, lng]);
+    } else {
+      userMarker = L.marker([lat, lng], {
+        icon: L.divIcon({ className: '', html: '<div class="user-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }),
+        interactive: false
+      }).addTo(map);
+    }
+  };
+
+  window.flyTo = function (lat, lng, zoom, durationMs) {
+    map.flyTo([lat, lng], zoom, { duration: (durationMs || 600) / 1000 });
+  };
+
+  map.on('click', function () { post('mapPress'); });
+
+  post('ready');
+</script>
+</body>
+</html>`;
 
 // ── Skopje Center Coordinates ──
 const SKOPJE_CENTER = {
@@ -192,6 +302,17 @@ const DEFAULT_CAT = {
   labelMk: 'Настан',
 };
 
+// Marker glyphs for the Leaflet map — Lucide icon names (rendered via the Lucide CDN script, not the Ionicons font)
+const CATEGORY_MAP_ICON: Record<string, string> = {
+  Music: 'music',
+  Outings: 'party-popper',
+  Sports: 'dumbbell',
+  'Coffee Culture': 'coffee',
+  Community: 'users',
+  Art: 'palette',
+};
+const DEFAULT_MAP_ICON = 'calendar';
+
 const CATEGORIES_LIST = [
   { key: 'All', labelMk: 'Сите', icon: 'apps' as keyof typeof Ionicons.glyphMap, color: '#63E6DC' },
   { key: 'Music', labelMk: 'Музика', icon: 'musical-notes' as keyof typeof Ionicons.glyphMap, color: '#B052F7' },
@@ -204,7 +325,8 @@ const CATEGORIES_LIST = [
 
 export default function ExploreMapScreen() {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<WebView>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Instantly start with Skopje fallback events so screen is NEVER blank
   const [events, setEvents] = useState<Record<string, any>[]>(SKOPJE_FALLBACK_EVENTS);
@@ -265,6 +387,12 @@ export default function ExploreMapScreen() {
     }
   };
 
+  const flyTo = (latitude: number, longitude: number, zoom: number, durationMs = 600) => {
+    mapRef.current?.injectJavaScript(
+      `window.flyTo(${latitude}, ${longitude}, ${zoom}, ${durationMs}); true;`
+    );
+  };
+
   const handleCenterOnUser = async () => {
     try {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -274,15 +402,7 @@ export default function ExploreMapScreen() {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
       setUserCoords(coords);
-
-      mapRef.current?.animateToRegion(
-        {
-          ...coords,
-          latitudeDelta: 0.03,
-          longitudeDelta: 0.03,
-        },
-        700
-      );
+      flyTo(coords.latitude, coords.longitude, 15, 700);
     } catch (e) {
       console.warn('Location error:', e);
     }
@@ -290,7 +410,7 @@ export default function ExploreMapScreen() {
 
   const handleCenterOnSkopje = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    mapRef.current?.animateToRegion(SKOPJE_CENTER, 600);
+    flyTo(SKOPJE_CENTER.latitude, SKOPJE_CENTER.longitude, 13, 600);
   };
 
   const handleCategorySelect = (key: string) => {
@@ -302,15 +422,23 @@ export default function ExploreMapScreen() {
   const handleMarkerPress = (event: Record<string, any>) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedEvent(event);
-    mapRef.current?.animateToRegion(
-      {
-        latitude: event.latitude - 0.007,
-        longitude: event.longitude,
-        latitudeDelta: 0.025,
-        longitudeDelta: 0.025,
-      },
-      400
-    );
+    flyTo(event.latitude - 0.007, event.longitude, 15, 400);
+  };
+
+  const handleWebViewMessage = (e: WebViewMessageEvent) => {
+    try {
+      const msg = JSON.parse(e.nativeEvent.data);
+      if (msg.type === 'ready') {
+        setMapReady(true);
+      } else if (msg.type === 'markerPress') {
+        const ev = filteredEvents.find((item) => item.id === msg.id);
+        if (ev) handleMarkerPress(ev);
+      } else if (msg.type === 'mapPress') {
+        setSelectedEvent(null);
+      }
+    } catch {
+      // Ignore malformed messages
+    }
   };
 
   const filteredEvents = useMemo(() => {
@@ -323,6 +451,28 @@ export default function ExploreMapScreen() {
   const activeCatConfig = (catName?: string) => {
     return (catName && CATEGORY_CONFIG[catName]) || DEFAULT_CAT;
   };
+
+  useEffect(() => {
+    if (!mapReady) return;
+    const payload = filteredEvents.map((ev) => ({
+      id: ev.id,
+      latitude: ev.latitude,
+      longitude: ev.longitude,
+      color: activeCatConfig(ev.category).color,
+      glyph: CATEGORY_MAP_ICON[ev.category] ?? DEFAULT_MAP_ICON,
+      selected: selectedEvent?.id === ev.id,
+    }));
+    mapRef.current?.injectJavaScript(
+      `window.setMarkers(${JSON.stringify(JSON.stringify(payload))}); true;`
+    );
+  }, [mapReady, filteredEvents, selectedEvent]);
+
+  useEffect(() => {
+    if (!mapReady || !userCoords) return;
+    mapRef.current?.injectJavaScript(
+      `window.setUserLocation(${userCoords.latitude}, ${userCoords.longitude}); true;`
+    );
+  }, [mapReady, userCoords]);
 
   const formatEventDate = (dateStr?: string) => {
     if (!dateStr) return 'Наскоро';
@@ -346,69 +496,19 @@ export default function ExploreMapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Interactive Native Map (iOS / Android) ── */}
+      {/* ── Interactive Map (Leaflet + OpenStreetMap, no Apple/Google/Mapbox SDK) ── */}
       {Platform.OS !== 'web' ? (
-        <MapView
+        <WebView
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_DEFAULT}
-          initialRegion={SKOPJE_CENTER}
-          customMapStyle={Platform.OS === 'android' ? DARK_MAP_STYLE : undefined}
-          userInterfaceStyle="dark"
-          showsUserLocation={!!userCoords}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          showsScale={false}
-          onPress={() => setSelectedEvent(null)}
-        >
-          {filteredEvents.map((ev) => {
-            const config = activeCatConfig(ev.category);
-            const isSelected = selectedEvent?.id === ev.id;
-
-            return (
-              <Marker
-                key={`marker-${ev.id}`}
-                coordinate={{ latitude: ev.latitude, longitude: ev.longitude }}
-                onPress={() => handleMarkerPress(ev)}
-                tracksViewChanges={false}
-              >
-                <View style={styles.markerContainer}>
-                  {isSelected && (
-                    <View
-                      style={[
-                        styles.selectedHalo,
-                        { borderColor: config.color, shadowColor: config.color },
-                      ]}
-                    />
-                  )}
-                  <View
-                    style={[
-                      styles.markerPin,
-                      {
-                        backgroundColor: config.color,
-                        borderColor: isSelected ? '#FFFFFF' : '#0B1010',
-                        shadowColor: config.color,
-                      },
-                      isSelected && styles.markerPinSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name={config.icon}
-                      size={isSelected ? 18 : 14}
-                      color="#090C0C"
-                    />
-                  </View>
-                  <View
-                    style={[
-                      styles.markerTriangle,
-                      { borderTopColor: config.color },
-                    ]}
-                  />
-                </View>
-              </Marker>
-            );
-          })}
-        </MapView>
+          originWhitelist={['*']}
+          source={{ html: MAP_HTML }}
+          onMessage={handleWebViewMessage}
+          javaScriptEnabled
+          domStorageEnabled
+          scrollEnabled={false}
+          bounces={false}
+        />
       ) : (
         /* Web fallback: interactive OpenStreetMap iframe */
         <View style={styles.webMapContainer}>
@@ -720,55 +820,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#A7B0AE',
-  },
-
-  // ── Marker Styles ──
-  markerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectedHalo: {
-    position: 'absolute',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-    elevation: 8,
-  },
-  markerPin: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  markerPinSelected: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 2.5,
-  },
-  markerTriangle: {
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 5,
-    borderRightWidth: 5,
-    borderBottomWidth: 0,
-    borderTopWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    marginTop: -1,
   },
 
   // ── Floating Buttons ──

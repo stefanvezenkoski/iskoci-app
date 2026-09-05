@@ -337,7 +337,7 @@ function EventCard({ event, index }: { event: Record<string, any>; index: number
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#090c0c' },
-  content: { paddingTop: 17, paddingBottom: 25 },
+  content: { paddingTop: 17, paddingBottom: 140 },
   header: {
     marginHorizontal: 25,
     flexDirection: 'row',
