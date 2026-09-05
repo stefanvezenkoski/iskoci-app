@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, type BottomTabBarProps } from 'expo-router/js-tabs';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { router, Tabs } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 const items = [
   { route: 'index', icon: 'home-outline', activeIcon: 'home' },
-  { route: 'explore', icon: 'ticket-outline', activeIcon: 'ticket' },
-  { route: 'favorites', icon: 'calendar-outline', activeIcon: 'calendar' },
+  { route: 'explore', icon: 'map-outline', activeIcon: 'map' },
+  { route: 'calendar', icon: 'calendar-outline', activeIcon: 'calendar' },
   { route: 'profile', icon: 'person-outline', activeIcon: 'person' },
 ] as const;
 
@@ -18,12 +19,26 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       <View style={styles.pill}>
         {items.slice(0, 2).map((item) => {
           const active = isActive(item.route);
-          return <Pressable key={item.route} onPress={() => navigate(item.route)} style={styles.iconButton}><View style={active && styles.activeIcon}><Ionicons name={active ? item.activeIcon : item.icon} size={27} color={active ? '#171515' : '#D8D5D3'} /></View></Pressable>;
+          return (
+            <Pressable key={item.route} onPress={() => navigate(item.route)} style={styles.iconButton}>
+              <View style={active && styles.activeIcon}>
+                <Ionicons name={active ? item.activeIcon : item.icon} size={27} color={active ? '#171515' : '#D8D5D3'} />
+              </View>
+            </Pressable>
+          );
         })}
-        <Pressable accessibilityLabel="Create event" onPress={() => navigate('calendar')} style={styles.createButton}><Ionicons name="add" size={43} color="#0A0909" /></Pressable>
+        <Pressable accessibilityLabel="Create event" onPress={() => router.push('/create-event')} style={styles.createButton}>
+          <Ionicons name="add" size={43} color="#0A0909" />
+        </Pressable>
         {items.slice(2).map((item) => {
           const active = isActive(item.route);
-          return <Pressable key={item.route} onPress={() => navigate(item.route)} style={styles.iconButton}><View style={active && styles.activeIcon}><Ionicons name={active ? item.activeIcon : item.icon} size={27} color={active ? '#171515' : '#D8D5D3'} /></View></Pressable>;
+          return (
+            <Pressable key={item.route} onPress={() => navigate(item.route)} style={styles.iconButton}>
+              <View style={active && styles.activeIcon}>
+                <Ionicons name={active ? item.activeIcon : item.icon} size={27} color={active ? '#171515' : '#D8D5D3'} />
+              </View>
+            </Pressable>
+          );
         })}
       </View>
     </View>
@@ -32,9 +47,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarStyle: styles.tabBar }} tabBar={(props) => <FloatingTabBar {...props} />}>
+    <Tabs screenOptions={{ headerShown: false, tabBarStyle: styles.tabBar }} tabBar={(props: any) => <FloatingTabBar {...props} />}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="explore" options={{ title: 'Discover' }} />
+      <Tabs.Screen name="explore" options={{ title: 'Map' }} />
       <Tabs.Screen name="calendar" options={{ title: 'Create event' }} />
       <Tabs.Screen name="favorites" options={{ title: 'Calendar' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />

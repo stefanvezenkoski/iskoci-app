@@ -14,6 +14,7 @@ on conflict (id) do nothing;
 
 insert into public.events (
   id, organizer_id, title, description, category_id, location, date_start, date_end,
+  id, organizer_id, title, description, category_id, location, latitude, longitude, date_start, date_end,
   recurrence, featured_image, guest_limit, price, language, status
 )
 values
@@ -24,6 +25,8 @@ values
     'Outdoor movie night under the stars with food trucks and live DJ.',
     '44444444-4444-4444-8444-444444444444',
     'Macedonia Square, Skopje',
+    41.9965,
+    21.4314,
     '2026-09-02T20:30:00+00:00',
     '2026-09-02T23:00:00+00:00',
     'none',
@@ -40,6 +43,8 @@ values
     'Late-night electronic session with guest DJs and immersive visuals.',
     '44444444-4444-4444-8444-444444444444',
     'The Venue Club',
+    41.9981,
+    21.4254,
     '2026-09-03T20:00:00+00:00',
     '2026-09-03T23:30:00+00:00',
     'none',

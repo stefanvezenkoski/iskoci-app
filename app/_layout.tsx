@@ -1,10 +1,9 @@
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
-import { useFonts } from 'expo-font';
+import { FontDisplay, useFonts } from 'expo-font';
 import { DarkTheme, Redirect, Stack, ThemeProvider, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
 import 'react-native-reanimated';
 
 import { IskociLoadingScreen } from '@/components/iskoci-loading-screen';
@@ -17,17 +16,12 @@ const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const appFonts = {
   'Climate Crisis': {
     uri: 'https://fonts.gstatic.com/s/climatecrisis/v15/wEOpEB3AntNeKCPBVW9XOKlmp3AUgWFN1DvIvcM0gFpKiq8qO7vfsLd_.woff2',
-    display: 'swap',
+    display: FontDisplay.SWAP,
   },
   'Wix Madefor Text': {
     uri: 'https://fonts.gstatic.com/s/wixmadefortext/v17/-W_oXI_oSymQ8Qj-Apx3HGN_Hu1RTCk5FtSDETgf0cK_NOeF.ttf',
-    display: 'swap',
+    display: FontDisplay.SWAP,
   },
-} as const;
-
-Text.defaultProps = {
-  ...(Text.defaultProps || {}),
-  style: [{ fontFamily: 'Wix Madefor Text' }, Text.defaultProps?.style],
 };
 
 export const unstable_settings = {
@@ -51,15 +45,36 @@ function AppNavigator() {
     return <Redirect href="/" />;
   }
 
-  return <Stack><Stack.Screen name="(tabs)" options={{ headerShown: false }} /><Stack.Screen name="(auth)" options={{ headerShown: false }} /><Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} /></Stack>;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="event-details" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+      <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+    </Stack>
+  );
 }
 
 function AppShell() {
   if (!clerkPublishableKey) {
-    return <Stack><Stack.Screen name="(tabs)" options={{ headerShown: false }} /><Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} /></Stack>;
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
+        <Stack.Screen name="event-details" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+      </Stack>
+    );
   }
 
-  return <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={clerkTokenCache}><AppNavigator /></ClerkProvider>;
+  return (
+    <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={clerkTokenCache}>
+      <AppNavigator />
+    </ClerkProvider>
+  );
 }
 
 export default function RootLayout() {
@@ -71,7 +86,7 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
 
-    const timer = setTimeout(() => setIsLoading(false), 2200);
+    const timer = setTimeout(() => setIsLoading(false), 2700);
     return () => clearTimeout(timer);
   }, [fontsLoaded, fontError]);
 

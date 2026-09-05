@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
+import { AmbientBackground } from '@/components/ambient-background';
+
 const favorites = [
   { title: 'Sunset Cinema', time: 'Fri • 8:30 PM', tag: 'Featured' },
   { title: 'Café Social Mixer', time: 'Thu • 7:30 PM', tag: 'Popular' },
@@ -13,14 +15,15 @@ export default function FavoritesScreen() {
 
   const palette = {
     bg: isDark ? '#090C0C' : '#F4F8F7',
-    panel: isDark ? '#151B1A' : '#ffffff',
+    panel: isDark ? 'rgba(21,27,26,0.72)' : 'rgba(255,255,255,0.72)',
     text: isDark ? '#edf3ff' : '#111827',
     muted: isDark ? '#A7B0AE' : '#667572',
     soft: isDark ? '#203C3A' : '#E7F5F3',
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: palette.bg }]}> 
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
+      <AmbientBackground />
       <ScrollView style={[styles.container, { backgroundColor: palette.bg }]} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: palette.text }]}>Favorites</Text>
 

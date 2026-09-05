@@ -50,7 +50,11 @@ export async function fetchEventById(id: string) {
     return null;
   }
 
-  const { data, error } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
+  const { data, error } = await supabase
+    .from('events')
+    .select('*, categories(name_en, name_mk)')
+    .eq('id', id)
+    .maybeSingle();
 
   if (error) {
     console.warn('Supabase fetchEventById error:', error.message);
