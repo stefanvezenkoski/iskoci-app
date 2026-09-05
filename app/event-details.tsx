@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
+  ActivityIndicator,
   Image,
   Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,48 +17,100 @@ import {
   Text,
   View,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
+import { getCategoryConfig, getCategoryMapIcon } from '@/constants/event-categories';
 import { fetchEventById } from '@/lib/supabase';
+import { getFavoriteEventIds, toggleFavoriteEvent } from '@/lib/event-storage';
 
-/* ── Dark map style (Apple Maps dark + Google Maps custom) ── */
-const DARK_MAP_STYLE = [
-  { elementType: 'geometry', stylers: [{ color: '#0e1513' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#5a6e6b' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0e1513' }] },
-  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#1b2a27' }] },
-  { featureType: 'administrative.land_parcel', elementType: 'labels.text.fill', stylers: [{ color: '#3a4f4b' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#111e1b' }] },
-  { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#162320' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#4a6360' }] },
-  { featureType: 'poi.park', elementType: 'geometry.fill', stylers: [{ color: '#142821' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1a2926' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#13201e' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1f3532' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#162d2a' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#162320' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0a1412' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#2a3f3b' }] },
-];
+// Small, static, non-interactive location preview — same Leaflet + CARTO dark
+// basemap as the explore screen's map, so the two feel like one system.
+function buildLocationMapHtml(lat: number, lng: number, color: string, glyph: string) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #0e1513; overflow: hidden; }
+  .leaflet-control-zoom { display: none; }
+  .leaflet-control-attribution {
+    background: rgba(9, 12, 12, 0.55) !important;
+    color: rgba(216, 213, 211, 0.8) !important;
+    font-size: 8px !important;
+  }
+  .leaflet-control-attribution a { color: #63E6DC !important; }
+  .pin-outer {
+    width: 40px; height: 40px; border-radius: 20px;
+    background: ${color}33;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pin-inner {
+    width: 28px; height: 28px; border-radius: 14px;
+    background: ${color};
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 10px ${color}B3;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+  var map = L.map('map', {
+    zoomControl: false,
+    attributionControl: true,
+    dragging: false,
+    touchZoom: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    tap: false
+  }).setView([${lat}, ${lng}], 15);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${process.env.EXPO_PUBLIC_CARTO_API_KEY ?? ''}', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+
+  var icon = L.divIcon({
+    className: '',
+    html: '<div class="pin-outer"><div class="pin-inner"><i data-lucide="${glyph}" style="color:#090C0C" width="16" height="16"></i></div></div>',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+  L.marker([${lat}, ${lng}], { icon: icon, interactive: false }).addTo(map);
+  if (window.lucide) window.lucide.createIcons();
+
+  function fixSize() { map.invalidateSize(); }
+  setTimeout(fixSize, 150);
+  setTimeout(fixSize, 500);
+</script>
+</body>
+</html>`;
+}
 
 /* ── Default / fallback event data ── */
 const DEFAULT_EVENT = {
-  title: 'Winter Music Festival\n2026 Edition',
+  title: 'Зимски музички фестивал\nИздание 2026',
   date_start: '2026-01-25T18:00:00.000Z',
-  location: 'Central Park, NY',
-  latitude: 40.7829,
-  longitude: -73.9654,
+  location: 'Градски парк, Скопје',
+  latitude: 42.0031,
+  longitude: 21.4235,
   rsvp_count: 150,
   host_name: 'Celiarn',
   host_avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
   description:
-    'A cozy, pressure-free Friday 🌙 night with great music and easygoing vibes. Meet new people, enjoy genuine moments, 🤟and let conversations flow naturally 🌿\nA bright city hangout made for connection, comfort, and good energy ⚡',
+    'Опуштена петочна вечер 🌙 со одлична музика и пријатна атмосфера. Запознај нови луѓе, уживај во искрени моменти и пушти разговорот да тече природно. 🌿\nГрадско дружење создадено за поврзување, удобност и добра енергија. ⚡',
   image_url:
     'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=85',
-  category: 'Gathering',
+  category: 'Дружење',
   price: 99,
-  tags: ['Gathering', 'Social', 'Night Out', 'Night Out'],
+  tags: ['Дружење', 'Социјално', 'Вечерно излегување'],
   gallery: [
     'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=500&q=80',
     'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=500&q=80',
@@ -82,33 +134,31 @@ const SKOPJE = { latitude: 41.9981, longitude: 21.4254 };
 export default function EventDetailsScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const targetEventId = Array.isArray(id) ? id[0] : id;
   const [eventData, setEventData] = useState<Record<string, any> | null>(null);
+  const [isLoading, setIsLoading] = useState(() => Boolean(targetEventId));
   const [isLiked, setIsLiked] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const mapRef = useRef<MapView>(null);
+  const [showTicketConfirmation, setShowTicketConfirmation] = useState(false);
 
   useEffect(() => {
-    const targetId = Array.isArray(id) ? id[0] : id;
-    if (!targetId) return;
+    if (!targetEventId) return;
 
-    fetchEventById(targetId).then((data) => {
-      if (data) {
-        setEventData(data);
-      }
-    });
-  }, [id]);
+    fetchEventById(targetEventId)
+      .then((data) => {
+        if (data) {
+          setEventData(data);
+        }
+      })
+      .finally(() => setIsLoading(false));
+  }, [targetEventId]);
 
-  /* Request user location (non-blocking) */
   useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-    })();
-  }, []);
+    if (!targetEventId) return;
+    getFavoriteEventIds().then((ids) => setIsLiked(ids.includes(targetEventId)));
+  }, [targetEventId]);
 
   const activeEvent: Record<string, any> = eventData || DEFAULT_EVENT;
+  const categoryConfig = getCategoryConfig(activeEvent.category);
 
   /* ── Map coordinates ── */
   const hasCoords =
@@ -122,15 +172,15 @@ export default function EventDetailsScreen() {
     : SKOPJE;
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Jan 25, 2026 • 6:00 PM';
+    if (!dateStr) return '25 јан. 2026 • 18:00';
     try {
       const d = new Date(dateStr);
-      const datePart = d.toLocaleDateString('en-US', {
+      const datePart = d.toLocaleDateString('mk-MK', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
       });
-      const timePart = d.toLocaleTimeString('en-US', {
+      const timePart = d.toLocaleTimeString('mk-MK', {
         hour: 'numeric',
         minute: '2-digit',
       });
@@ -143,19 +193,22 @@ export default function EventDetailsScreen() {
   const formattedPrice =
     activeEvent.price !== undefined && activeEvent.price !== null
       ? activeEvent.price === 0
-        ? 'Free'
-        : `$${activeEvent.price}`
-      : '$99';
+        ? 'Бесплатно'
+        : `${activeEvent.price} МКД`
+      : '99 МКД';
 
   const tagsList =
     activeEvent.tags ??
-    (activeEvent.category ? [activeEvent.category, 'Social', 'Night Out'] : ['Gathering', 'Social', 'Night Out']);
+    (activeEvent.category
+      ? [categoryConfig.labelMk, 'Дружење', 'Вечерно излегување']
+      : ['Дружење', 'Вечерно излегување']);
 
   const galleryImages = activeEvent.gallery ?? DEFAULT_EVENT.gallery;
 
   const handleToggleLike = async () => {
     await Haptics.selectionAsync();
-    setIsLiked((prev) => !prev);
+    if (!targetEventId) return;
+    setIsLiked(await toggleFavoriteEvent(targetEventId));
   };
 
   const handleShare = async () => {
@@ -163,7 +216,7 @@ export default function EventDetailsScreen() {
     try {
       await Share.share({
         title: activeEvent.title,
-        message: `Check out ${activeEvent.title} in ${activeEvent.location}!`,
+        message: `Погледни го настанот ${activeEvent.title} во ${activeEvent.location}!`,
       });
     } catch (e) {
       console.warn('Error sharing event:', e);
@@ -172,23 +225,28 @@ export default function EventDetailsScreen() {
 
   const handleGetTicket = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(
-      'Ticket Reserved!',
-      `You're all set for ${activeEvent.title.replace('\n', ' ')} (${formattedPrice}). See you there!`,
-      [{ text: 'Awesome', style: 'default' }]
-    );
+    setShowTicketConfirmation(true);
   };
 
   const handleGetDirections = () => {
     const lat = eventCoords.latitude;
     const lng = eventCoords.longitude;
-    const label = encodeURIComponent(activeEvent.location || 'Event Location');
+    const label = encodeURIComponent(activeEvent.location || 'Локација на настанот');
     const url =
       Platform.OS === 'ios'
         ? `maps:0,0?q=${label}@${lat},${lng}`
         : `geo:0,0?q=${lat},${lng}(${label})`;
     Linking.openURL(url);
   };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color="#63E6DC" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -237,8 +295,8 @@ export default function EventDetailsScreen() {
           <Pressable
             hitSlop={12}
             onPress={() => router.back()}
-            style={styles.navAction}
-            accessibilityLabel="Go back"
+            style={({ pressed }) => [styles.navAction, pressed && styles.navActionPressed]}
+            accessibilityLabel="Назад"
           >
             <Ionicons name="arrow-back" size={26} color="#FFFFFF" />
           </Pressable>
@@ -247,8 +305,8 @@ export default function EventDetailsScreen() {
             <Pressable
               hitSlop={12}
               onPress={handleToggleLike}
-              style={styles.navAction}
-              accessibilityLabel="Add to favorites"
+              style={({ pressed }) => [styles.navAction, pressed && styles.navActionPressed]}
+              accessibilityLabel="Додај во омилени"
             >
               <Ionicons
                 name={isLiked ? 'heart' : 'heart-outline'}
@@ -260,8 +318,8 @@ export default function EventDetailsScreen() {
             <Pressable
               hitSlop={12}
               onPress={handleShare}
-              style={styles.navAction}
-              accessibilityLabel="Share event"
+              style={({ pressed }) => [styles.navAction, pressed && styles.navActionPressed]}
+              accessibilityLabel="Сподели настан"
             >
               <Ionicons name="share-social-outline" size={24} color="#FFFFFF" />
             </Pressable>
@@ -279,7 +337,7 @@ export default function EventDetailsScreen() {
           </View>
           <View style={styles.metaItem}>
             <Ionicons name="location-sharp" size={16} color="#FFFFFF" style={styles.metaIcon} />
-            <Text style={styles.metaText}>{activeEvent.location}</Text>
+            <Text style={styles.metaText}>{activeEvent.location || 'Локацијата ќе биде објавена наскоро'}</Text>
           </View>
         </View>
 
@@ -289,7 +347,7 @@ export default function EventDetailsScreen() {
         {/* Attendees Section */}
         <View style={styles.attendeesContainer}>
           <Text style={styles.joinedCountText}>
-            {activeEvent.rsvp_count ?? 150}+ Joined
+            {activeEvent.rsvp_count ?? 150}+ пријавени
           </Text>
 
           {/* Constellation of Floating Attendee Avatars */}
@@ -326,12 +384,14 @@ export default function EventDetailsScreen() {
             />
           </View>
           <Text style={styles.hostedByText}>
-            Hosted By {activeEvent.host_name || 'Celiarn'}
+            Организатор: {activeEvent.host_name || 'Celiarn'}
           </Text>
         </View>
 
         {/* Description */}
-        <Text style={styles.descriptionText}>{activeEvent.description}</Text>
+        <Text style={styles.descriptionText}>
+          {activeEvent.description || 'Сè уште нема додаден опис.'}
+        </Text>
 
         {/* Tags Row */}
         <ScrollView
@@ -348,7 +408,7 @@ export default function EventDetailsScreen() {
 
         {/* Gallery Section */}
         <View style={styles.gallerySection}>
-          <Text style={styles.galleryHeading}>Gallery</Text>
+          <Text style={styles.galleryHeading}>Галерија</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -365,39 +425,25 @@ export default function EventDetailsScreen() {
         {/* ── Location / Map Section ── */}
         <View style={styles.locationSection}>
           <Text style={styles.locationHeading}>
-            <Ionicons name="location" size={18} color="#63E6DC" /> Location
+            <Ionicons name="location" size={18} color="#63E6DC" /> Локација
           </Text>
 
           <View style={styles.mapContainer}>
-            <MapView
-              ref={mapRef}
+            <WebView
               style={styles.map}
-              provider={PROVIDER_DEFAULT}
-              initialRegion={{
-                ...eventCoords,
-                latitudeDelta: 0.012,
-                longitudeDelta: 0.012,
+              originWhitelist={['*']}
+              source={{
+                html: buildLocationMapHtml(
+                  eventCoords.latitude,
+                  eventCoords.longitude,
+                  categoryConfig.color,
+                  getCategoryMapIcon(activeEvent.category)
+                ),
               }}
-              customMapStyle={DARK_MAP_STYLE}
-              userInterfaceStyle="dark"
-              showsUserLocation={!!userLocation}
-              showsMyLocationButton={false}
-              showsCompass={false}
-              showsScale={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
               scrollEnabled={false}
-              zoomEnabled={false}
+              javaScriptEnabled
               pointerEvents="none"
-            >
-              <Marker coordinate={eventCoords} title={activeEvent.location}>
-                <View style={styles.markerOuter}>
-                  <View style={styles.markerInner}>
-                    <Ionicons name="musical-notes" size={16} color="#090C0C" />
-                  </View>
-                </View>
-              </Marker>
-            </MapView>
+            />
 
             {/* Gradient overlay at bottom of map for seamless blend */}
             <LinearGradient
@@ -408,7 +454,7 @@ export default function EventDetailsScreen() {
           </View>
 
           {/* Location name */}
-          <Text style={styles.locationName}>{activeEvent.location || 'Location TBA'}</Text>
+          <Text style={styles.locationName}>{activeEvent.location || 'Локацијата ќе биде објавена наскоро'}</Text>
 
           {/* Get Directions button */}
           <Pressable
@@ -419,7 +465,7 @@ export default function EventDetailsScreen() {
             ]}
           >
             <Ionicons name="navigate-outline" size={16} color="#63E6DC" />
-            <Text style={styles.directionsText}>Get Directions</Text>
+            <Text style={styles.directionsText}>Насоки до локацијата</Text>
             <Ionicons name="chevron-forward" size={14} color="#63E6DC" style={{ marginLeft: 2 }} />
           </Pressable>
         </View>
@@ -445,13 +491,42 @@ export default function EventDetailsScreen() {
             styles.ticketButton,
             pressed && styles.ticketButtonPressed,
           ]}
-          accessibilityLabel="Get ticket"
+          accessibilityLabel="Резервирај билет"
         >
           <Text style={styles.ticketButtonText}>
-            Get Ticket {'{ ' + formattedPrice + ' }'}
+            Резервирај билет {'{ ' + formattedPrice + ' }'}
           </Text>
         </Pressable>
       </View>
+
+      {/* Ticket confirmation */}
+      <Modal
+        visible={showTicketConfirmation}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTicketConfirmation(false)}
+      >
+        <View style={styles.confirmationBackdrop}>
+          <View style={styles.confirmationCard}>
+            <View style={styles.confirmationIconRing}>
+              <Ionicons name="checkmark" size={30} color="#090C0C" />
+            </View>
+            <Text style={styles.confirmationTitle}>Билетот е резервиран!</Text>
+            <Text style={styles.confirmationSubtitle}>
+              Подготвен/а си за {activeEvent.title.replace('\n', ' ')} ({formattedPrice}). Се гледаме таму!
+            </Text>
+            <Pressable
+              onPress={() => setShowTicketConfirmation(false)}
+              style={({ pressed }) => [
+                styles.confirmationButton,
+                pressed && styles.ticketButtonPressed,
+              ]}
+            >
+              <Text style={styles.ticketButtonText}>Одлично</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -460,6 +535,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090C0C',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   heroBackdrop: {
     position: 'absolute',
@@ -500,6 +579,10 @@ const styles = StyleSheet.create({
     padding: 6,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  navActionPressed: {
+    opacity: 0.6,
+    transform: [{ scale: 0.92 }],
   },
   navRightGroup: {
     flexDirection: 'row',
@@ -717,29 +800,6 @@ const styles = StyleSheet.create({
     height: 40,
   },
 
-  /* Custom marker */
-  markerOuter: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(99, 230, 220, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  markerInner: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#63E6DC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#63E6DC',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-
   locationName: {
     color: '#D4D8E0',
     fontSize: 14,
@@ -798,5 +858,62 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: 'Wix Madefor Text',
     letterSpacing: -0.2,
+  },
+
+  /* ── Ticket confirmation ── */
+  confirmationBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(4, 6, 6, 0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  confirmationCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#12201D',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 230, 220, 0.18)',
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  confirmationIconRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#63E6DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    shadowColor: '#63E6DC',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  confirmationTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    fontFamily: 'Wix Madefor Text',
+  },
+  confirmationSubtitle: {
+    color: '#B7C0BE',
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 22,
+    fontFamily: 'Wix Madefor Text',
+  },
+  confirmationButton: {
+    alignSelf: 'stretch',
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -52,7 +52,8 @@ function AppNavigator() {
       <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="event-details" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
       <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+      <Stack.Screen name="my-events" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Прозорец', headerShown: true }} />
     </Stack>
   );
 }
@@ -65,7 +66,8 @@ function AppShell() {
         <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
         <Stack.Screen name="event-details" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
         <Stack.Screen name="create-event" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+        <Stack.Screen name="my-events" options={{ headerShown: false, animation: 'fade_from_bottom' }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Прозорец', headerShown: true }} />
       </Stack>
     );
   }

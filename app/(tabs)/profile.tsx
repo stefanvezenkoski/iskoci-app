@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,12 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AmbientBackground } from '@/components/ambient-background';
-
-const STATS = [
-  { id: 'tickets', label: 'Билети', value: '4', icon: 'ticket-outline' },
-  { id: 'saved', label: 'Зачувани', value: '12', icon: 'heart-outline' },
-  { id: 'hosted', label: 'Креирани', value: '2', icon: 'flash-outline' },
-];
+import { getFavoriteEventIds, getSubmittedEvents } from '@/lib/event-storage';
 
 const MENU_ITEMS = [
   {
@@ -38,16 +33,16 @@ const MENU_ITEMS = [
   {
     id: 'my-events',
     title: 'Мои настани',
-    subtitle: 'Настани што ги организираш',
+    subtitle: 'Листа на настаните што си ги испратил',
     icon: 'calendar',
-    onPress: () => router.push('/create-event'),
+    onPress: () => router.push('/my-events'),
   },
   {
     id: 'saved-events',
     title: 'Омилени настани',
-    subtitle: 'Настани зачувани за подоцна',
+    subtitle: 'Твојата листа на омилени настани',
     icon: 'heart',
-    onPress: () => router.push('/explore'),
+    onPress: () => router.push('/favorites'),
   },
   {
     id: 'notifications',
@@ -176,6 +171,23 @@ function ProfileContent({
   uploadError?: string;
 }) {
   const insets = useSafeAreaInsets();
+  const [favoriteCount, setFavoriteCount] = useState(0);
+  const [submittedCount, setSubmittedCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      Promise.all([getFavoriteEventIds(), getSubmittedEvents()]).then(([favorites, submitted]) => {
+        setFavoriteCount(favorites.length);
+        setSubmittedCount(submitted.length);
+      });
+    }, [])
+  );
+
+  const stats = [
+    { id: 'tickets', label: 'Билети', value: '—', icon: 'ticket-outline' },
+    { id: 'saved', label: 'Зачувани', value: String(favoriteCount), icon: 'heart-outline' },
+    { id: 'hosted', label: 'Креирани', value: String(submittedCount), icon: 'flash-outline' },
+  ];
 
   const fullName = user
     ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.username || 'Корисник'
@@ -208,7 +220,7 @@ function ProfileContent({
               Alert.alert('Поставки', 'Опциите за известувања и безбедност ќе бидат достапни наскоро.');
             }}
             style={styles.iconCircleButton}
-            accessibilityLabel="Settings"
+            accessibilityLabel="Поставки"
           >
             <Ionicons name="settings-outline" size={20} color="#E0E4EB" />
           </Pressable>
@@ -264,12 +276,12 @@ function ProfileContent({
 
           {/* Stats Cluster */}
           <View style={styles.statsCluster}>
-            {STATS.map((stat, idx) => (
+            {stats.map((stat, idx) => (
               <View
                 key={stat.id}
                 style={[
                   styles.statBlock,
-                  idx !== STATS.length - 1 && styles.statDivider,
+                  idx !== stats.length - 1 && styles.statDivider,
                 ]}
               >
                 <Ionicons name={stat.icon as any} size={16} color="#63E6DC" style={{ marginBottom: 4 }} />
@@ -368,8 +380,8 @@ function ProfileContent({
 
         {/* Footer info */}
         <View style={styles.footerContainer}>
-          <Text style={styles.footerBrand}>ИСКОЧИ • Skopje</Text>
-          <Text style={styles.footerVersion}>Верзија 1.0.0 (2026 Edition)</Text>
+          <Text style={styles.footerBrand}>ИСКОЧИ • Скопје</Text>
+          <Text style={styles.footerVersion}>Верзија 1.0.0 (издание 2026)</Text>
         </View>
       </ScrollView>
     </View>

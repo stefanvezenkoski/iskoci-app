@@ -22,12 +22,13 @@ import MapView, { type MapPressEvent, Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
+import { saveSubmittedEvent } from '@/lib/event-storage';
 
 const CATEGORIES = [
-  { id: '44444444-4444-4444-8444-444444444444', label: 'Outings', icon: 'sparkles' },
-  { id: '33333333-3333-4333-8333-333333333333', label: 'Sports', icon: 'football' },
-  { id: '55555555-5555-4555-8555-555555555555', label: 'Coffee Culture', icon: 'cafe' },
-  { id: '66666666-6666-4666-8666-666666666666', label: 'Community', icon: 'people' },
+  { id: '44444444-4444-4444-8444-444444444444', label: 'Излегувања', icon: 'sparkles' },
+  { id: '33333333-3333-4333-8333-333333333333', label: 'Спорт', icon: 'football' },
+  { id: '55555555-5555-4555-8555-555555555555', label: 'Кафе-култура', icon: 'cafe' },
+  { id: '66666666-6666-4666-8666-666666666666', label: 'Заедница', icon: 'people' },
 ];
 
 const SKOPJE_REGION = {
@@ -92,27 +93,27 @@ export default function CreateEventScreen() {
       const address = [place?.name ?? place?.street, place?.city ?? place?.region]
         .filter(Boolean)
         .join(', ');
-      setMapDraftLocation(address || 'Pinned location in Skopje');
+      setMapDraftLocation(address || 'Означена локација во Скопје');
     } catch {
-      setMapDraftLocation('Pinned location in Skopje');
+      setMapDraftLocation('Означена локација во Скопје');
     }
   };
 
   const confirmMapLocation = async () => {
     if (!mapDraftCoordinate) {
-      Alert.alert('Drop a pin', 'Tap a point on the map before continuing.');
+      Alert.alert('Постави игличка', 'Допрете точка на мапата пред да продолжите.');
       return;
     }
 
     setEventCoordinate(mapDraftCoordinate);
-    setLocation(mapDraftLocation || 'Pinned location in Skopje');
+    setLocation(mapDraftLocation || 'Означена локација во Скопје');
     setIsMapPickerOpen(false);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const handlePublish = async () => {
     if (!canPublish || !eventCoordinate) {
-      Alert.alert('Add the essentials', 'Please add an event title and choose a location on the map.');
+      Alert.alert('Додај ги основните информации', 'Внеси наслов и избери локација на мапата.');
       return;
     }
 
@@ -120,24 +121,24 @@ export default function CreateEventScreen() {
     const eventPrice = price ? Number(price.replace(',', '.')) : 0;
 
     if (Number.isNaN(startDateTime.getTime())) {
-      Alert.alert('Check the date', 'Use the format YYYY-MM-DD and a time like 20:00.');
+      Alert.alert('Провери го датумот', 'Користи формат ГГГГ-ММ-ДД и време како 20:00.');
       return;
     }
 
     if (Number.isNaN(eventPrice) || eventPrice < 0) {
-      Alert.alert('Check the price', 'Use a positive number, or leave it empty for a free event.');
+      Alert.alert('Провери ја цената', 'Внеси позитивен број или остави празно за бесплатен настан.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       if (!supabase) {
-        throw new Error('Event publishing is not configured on this device.');
+        throw new Error('Објавувањето на настани не е поставено на овој уред.');
       }
 
-      const { error } = await supabase.from('events').insert({
+      const eventPayload = {
         title: title.trim(),
-        description: description.trim() || 'Join us for an exciting event!',
+        description: description.trim() || 'Придружи ни се на одличен настан!',
         category_id: selectedCategory,
         location: location.trim(),
         latitude: eventCoordinate.latitude,
@@ -148,23 +149,33 @@ export default function CreateEventScreen() {
         status: 'pending',
         featured_image:
           'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80',
-      });
+      };
+
+      const { error } = await supabase.from('events').insert(eventPayload);
 
       if (error) {
         throw error;
       }
 
+      // Pending events are intentionally not publicly readable until an admin approves them.
+      // Keep a device-local copy so the organizer can see the submitted event immediately.
+      await saveSubmittedEvent({
+        ...eventPayload,
+        id: `local-${Date.now()}`,
+        image_url: eventPayload.featured_image,
+      });
+
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Event submitted! 🎉', 'Your event is ready for review.', [
+      Alert.alert('Настанот е испратен! 🎉', 'Настанот е подготвен за преглед.', [
         {
-          text: 'View Home',
-          onPress: () => router.replace('/(tabs)'),
+          text: 'Погледни ги моите настани',
+          onPress: () => router.replace('/my-events'),
         },
       ]);
     } catch (error) {
       Alert.alert(
-        'Couldn’t publish yet',
-        error instanceof Error ? error.message : 'Please try again in a moment.'
+        'Не успеа испраќањето',
+        error instanceof Error ? error.message : 'Обиди се повторно за момент.'
       );
     } finally {
       setIsSubmitting(false);
@@ -219,9 +230,9 @@ export default function CreateEventScreen() {
             onPress={handleSkip}
             hitSlop={12}
             style={styles.skipButton}
-            accessibilityLabel="Skip intro"
+            accessibilityLabel="Прескокни вовед"
           >
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={styles.skipText}>Прескокни</Text>
           </Pressable>
         </View>
 
@@ -236,16 +247,16 @@ export default function CreateEventScreen() {
           <View style={styles.titleContainer}>
             <Text style={styles.headline}>
               <Text style={styles.emoji}>🎊 </Text>
-              Create and{'\n'}Host Events Easily
+              Создавај и{'\n'}организирај настани лесно
             </Text>
           </View>
 
           {/* Subtitle / Description (Right-aligned matching screenshot) */}
           <View style={styles.descriptionWrapper}>
             <Text style={styles.description}>
-              Turn your ideas into reality.{'\n'}
-              Create events, sell tickets, and{'\n'}
-              manage everything in one place
+              Претвори ја идејата во реалност.{'\n'}
+              Создај настан, продавај билети и{'\n'}
+              управувај со сè на едно место
             </Text>
           </View>
 
@@ -270,9 +281,9 @@ export default function CreateEventScreen() {
                 styles.nextButton,
                 pressed && styles.nextButtonPressed,
               ]}
-              accessibilityLabel="Proceed to next step"
+              accessibilityLabel="Продолжи на следниот чекор"
             >
-              <Text style={styles.nextButtonText}>Next</Text>
+              <Text style={styles.nextButtonText}>Следно</Text>
             </Pressable>
           </View>
         </View>
@@ -311,23 +322,23 @@ export default function CreateEventScreen() {
         <View style={styles.formIntro}>
           <View style={styles.formIntroBadge}>
             <View style={styles.formIntroDot} />
-            <Text style={styles.formIntroBadgeText}>YOUR EVENT</Text>
+            <Text style={styles.formIntroBadgeText}>ТВОЈОТ НАСТАН</Text>
           </View>
-          <Text style={styles.formHeading}>Make it feel unmissable.</Text>
+          <Text style={styles.formHeading}>Направи го незаборавен.</Text>
           <Text style={styles.formSubheading}>
-            Add the essential details now. You can always refine the rest later.
+            Додај ги основните информации сега. Останатото можеш да го уредиш подоцна.
           </Text>
         </View>
 
         {/* Title Input */}
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>EVENT TITLE</Text>
-            <Text style={styles.requiredLabel}>REQUIRED</Text>
+            <Text style={styles.inputLabel}>НАСЛОВ НА НАСТАНОТ</Text>
+            <Text style={styles.requiredLabel}>ЗАДОЛЖИТЕЛНО</Text>
           </View>
           <TextInput
             style={[styles.textInput, focusedField === 'title' && styles.textInputFocused]}
-            placeholder="e.g. Rooftop Sunset Beats"
+            placeholder="на пр. Зајдисонце на тераса"
             placeholderTextColor="#6B7280"
             value={title}
             onChangeText={setTitle}
@@ -339,7 +350,7 @@ export default function CreateEventScreen() {
 
         {/* Category Picker */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>CATEGORY</Text>
+          <Text style={styles.inputLabel}>КАТЕГОРИЈА</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryChips}>
             {CATEGORIES.map((cat) => {
               const isSelected = selectedCategory === cat.id;
@@ -366,11 +377,11 @@ export default function CreateEventScreen() {
         {/* Location picker */}
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>EVENT LOCATION</Text>
-            <Text style={styles.requiredLabel}>REQUIRED</Text>
+            <Text style={styles.inputLabel}>ЛОКАЦИЈА НА НАСТАНОТ</Text>
+            <Text style={styles.requiredLabel}>ЗАДОЛЖИТЕЛНО</Text>
           </View>
           <Pressable
-            accessibilityLabel="Choose event location on map"
+            accessibilityLabel="Избери локација на настанот на мапа"
             onPress={openMapPicker}
             style={({ pressed }) => [styles.mapTrigger, pressed && styles.mapTriggerPressed]}
           >
@@ -379,10 +390,10 @@ export default function CreateEventScreen() {
             </View>
             <View style={styles.mapTriggerCopy}>
               <Text style={styles.mapTriggerTitle}>
-                {eventCoordinate ? 'Location pinned' : 'Drop a pin on the map'}
+                {eventCoordinate ? 'Локацијата е означена' : 'Постави игличка на мапата'}
               </Text>
               <Text numberOfLines={1} style={styles.mapTriggerSubtitle}>
-                {location || 'Open the map and choose the exact spot'}
+                {location || 'Отвори ја мапата и избери ја точната локација'}
               </Text>
             </View>
             <Ionicons name="map-outline" size={22} color="#FAF9F8" />
@@ -392,7 +403,7 @@ export default function CreateEventScreen() {
         {/* Date & Time Row */}
         <View style={styles.rowInputs}>
           <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.inputLabel}>DATE (YYYY-MM-DD)</Text>
+            <Text style={styles.inputLabel}>ДАТУМ (ГГГГ-ММ-ДД)</Text>
             <TextInput
               style={[styles.textInput, focusedField === 'date' && styles.textInputFocused]}
               value={dateStr}
@@ -405,7 +416,7 @@ export default function CreateEventScreen() {
             />
           </View>
           <View style={[styles.inputGroup, { flex: 0.8 }]}>
-            <Text style={styles.inputLabel}>TIME</Text>
+            <Text style={styles.inputLabel}>ВРЕМЕ</Text>
             <TextInput
               style={[styles.textInput, focusedField === 'time' && styles.textInputFocused]}
               value={timeStr}
@@ -421,10 +432,10 @@ export default function CreateEventScreen() {
 
         {/* Price Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>PRICE (LEAVE EMPTY FOR FREE)</Text>
+          <Text style={styles.inputLabel}>ЦЕНА (ПРАЗНО ЗА БЕСПЛАТНО)</Text>
           <TextInput
             style={[styles.textInput, focusedField === 'price' && styles.textInputFocused]}
-            placeholder="e.g. 250"
+            placeholder="на пр. 250"
             placeholderTextColor="#6B7280"
             value={price}
             onChangeText={setPrice}
@@ -437,7 +448,7 @@ export default function CreateEventScreen() {
         {/* Description Input */}
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
-            <Text style={styles.inputLabel}>DESCRIPTION</Text>
+            <Text style={styles.inputLabel}>ОПИС</Text>
             <Text style={styles.characterCount}>{description.length}/280</Text>
           </View>
           <TextInput
@@ -446,7 +457,7 @@ export default function CreateEventScreen() {
               styles.textArea,
               focusedField === 'description' && styles.textInputFocused,
             ]}
-            placeholder="Tell people what to expect at your event..."
+            placeholder="Кажи им на луѓето што ги очекува на настанот..."
             placeholderTextColor="#6B7280"
             value={description}
             onChangeText={setDescription}
@@ -469,7 +480,7 @@ export default function CreateEventScreen() {
           ]}
         >
           <Text style={styles.publishButtonText}>
-            {isSubmitting ? 'Publishing...' : canPublish ? 'Submit event' : 'Add title & map pin'}
+            {isSubmitting ? 'Се испраќа...' : canPublish ? 'Испрати настан' : 'Додај наслов и игличка'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -500,8 +511,8 @@ export default function CreateEventScreen() {
               <Ionicons name="close" size={23} color="#FFFFFF" />
             </Pressable>
             <View style={styles.mapModalTitleWrap}>
-              <Text style={styles.mapModalEyebrow}>EVENT LOCATION</Text>
-              <Text style={styles.mapModalTitle}>Drop your pin</Text>
+              <Text style={styles.mapModalEyebrow}>ЛОКАЦИЈА НА НАСТАНОТ</Text>
+              <Text style={styles.mapModalTitle}>Постави игличка</Text>
             </View>
             <View style={styles.mapModalIconButton} />
           </View>
@@ -510,7 +521,7 @@ export default function CreateEventScreen() {
             <View style={styles.mapModalLocation}>
               <Ionicons name="location" size={17} color="#63E6DC" />
               <Text numberOfLines={1} style={styles.mapModalLocationText}>
-                {mapDraftLocation || 'Tap the map to place your event pin'}
+                {mapDraftLocation || 'Допрете ја мапата за да ја поставите игличката'}
               </Text>
             </View>
             <Pressable
@@ -522,7 +533,7 @@ export default function CreateEventScreen() {
                 pressed && styles.mapDoneButtonPressed,
               ]}
             >
-              <Text style={styles.mapDoneButtonText}>Done</Text>
+              <Text style={styles.mapDoneButtonText}>Готово</Text>
               <Ionicons name="arrow-forward" size={18} color="#07100F" />
             </Pressable>
           </View>

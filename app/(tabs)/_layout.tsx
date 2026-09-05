@@ -70,7 +70,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       <View style={styles.pill}>
         <Animated.View pointerEvents="none" style={[styles.activeIndicator, indicatorStyle]} />
         {items.slice(0, 2).map(renderIcon)}
-        <Pressable accessibilityLabel="Create event" onPress={() => router.push('/create-event')} style={styles.createButton}>
+        <Pressable accessibilityLabel="Креирај настан" onPress={() => router.push('/create-event')} style={styles.createButton}>
           <Ionicons name="add" size={30} color="#0A0909" />
         </Pressable>
         {items.slice(2).map(renderIcon)}
@@ -82,11 +82,11 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 export default function TabLayout() {
   return (
     <Tabs screenOptions={{ headerShown: false, tabBarStyle: styles.tabBar }} tabBar={(props: any) => <FloatingTabBar {...props} />}>
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="explore" options={{ title: 'Map' }} />
-      <Tabs.Screen name="calendar" options={{ title: 'Calendar' }} />
-      <Tabs.Screen name="favorites" options={{ title: 'Favorites' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', href: null }} />
+      <Tabs.Screen name="index" options={{ title: 'Почетна' }} />
+      <Tabs.Screen name="explore" options={{ title: 'Мапа' }} />
+      <Tabs.Screen name="calendar" options={{ title: 'Календар' }} />
+      <Tabs.Screen name="favorites" options={{ title: 'Омилени' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Профил', href: null }} />
     </Tabs>
   );
 }

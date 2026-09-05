@@ -32,6 +32,18 @@ const DEFAULT_CATEGORIES = [
   'Art',
 ];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  All: 'Сите',
+  Art: 'Уметност',
+  'Coffee Culture': 'Кафе-култура',
+  Community: 'Заедница',
+  Music: 'Музика',
+  Outings: 'Излегувања',
+  Sports: 'Спорт',
+};
+
+const categoryLabel = (category: string) => CATEGORY_LABELS[category] ?? category;
+
 const attendeePhotos = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80',
   'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80',
@@ -40,9 +52,9 @@ const attendeePhotos = [
 ];
 
 const eventDate = (date: string) =>
-  new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  new Date(date).toLocaleDateString('mk-MK', { month: 'short', day: 'numeric', year: 'numeric' });
 const eventTime = (date: string) =>
-  new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  new Date(date).toLocaleTimeString('mk-MK', { hour: '2-digit', minute: '2-digit' });
 
 export default function HomeScreen() {
   const { user, isLoaded: isUserLoaded } = useUser();
@@ -236,7 +248,7 @@ export default function HomeScreen() {
               <Ionicons name="notifications-outline" size={23} color="#FAF9F8" />
               <View style={styles.alertDot} />
             </Pressable>
-            <Pressable accessibilityLabel="Open profile" onPress={() => router.push('/profile')}>
+            <Pressable accessibilityLabel="Отвори профил" onPress={() => router.push('/profile')}>
               <UserAvatar />
             </Pressable>
           </View>
@@ -248,7 +260,7 @@ export default function HomeScreen() {
             <Text style={styles.title}>Каде{`\n`}искачаш денес?</Text>
           </View>
           <Pressable
-            accessibilityLabel={isSearchOpen ? 'Focus event search' : 'Search events'}
+            accessibilityLabel={isSearchOpen ? 'Фокусирај пребарување' : 'Пребарај настани'}
             onPress={openSearch}
             style={styles.searchButton}
           >
@@ -278,7 +290,7 @@ export default function HomeScreen() {
             <Ionicons name="search-outline" size={19} color="#63E6DC" />
             <TextInput
               ref={searchInputRef}
-              accessibilityLabel="Search events by title, location, or category"
+              accessibilityLabel="Пребарај настани по наслов, локација или категорија"
               autoCapitalize="none"
               autoCorrect={false}
               onChangeText={setSearchQuery}
@@ -289,11 +301,11 @@ export default function HomeScreen() {
               value={searchQuery}
             />
             {searchQuery ? (
-              <Pressable accessibilityLabel="Clear search" hitSlop={8} onPress={() => setSearchQuery('')}>
+              <Pressable accessibilityLabel="Исчисти пребарување" hitSlop={8} onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={20} color="#A8B5B2" />
               </Pressable>
             ) : null}
-            <Pressable accessibilityLabel="Close search" hitSlop={8} onPress={closeSearch}>
+            <Pressable accessibilityLabel="Затвори пребарување" hitSlop={8} onPress={closeSearch}>
               <Ionicons name="arrow-up-outline" size={19} color="#FAF9F8" />
             </Pressable>
           </View>
@@ -318,7 +330,7 @@ export default function HomeScreen() {
                 style={[styles.categoryChip, isActive && styles.categoryChipActive]}
               >
                 <Text style={[styles.category, isActive && styles.categoryActive]}>
-                  {category}
+                  {categoryLabel(category)}
                 </Text>
                 {isUserFavorite && !isActive && (
                   <View style={styles.interestStarDot} />
@@ -329,19 +341,19 @@ export default function HomeScreen() {
         </ScrollView>
 
         {isLoadingEvents ? (
-          <View style={styles.loadingRow} accessibilityLabel="Loading events">
+          <View style={styles.loadingRow} accessibilityLabel="Се вчитуваат настани">
             <View style={styles.loadingCard} />
             <View style={[styles.loadingCard, styles.loadingCardSecondary]} />
           </View>
         ) : displayEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateTitle}>
-              {searchQuery ? 'Нема совпаѓања' : 'No events in this category'}
+              {searchQuery ? 'Нема совпаѓања' : 'Нема настани во оваа категорија'}
             </Text>
             <Text style={styles.emptyStateText}>
               {searchQuery
                 ? 'Пробај со друг наслов, место или категорија.'
-                : 'Try another category or add a matching event in Supabase.'}
+                : 'Избери друга категорија или додај соодветен настан.'}
             </Text>
           </View>
         ) : (
@@ -362,7 +374,7 @@ export default function HomeScreen() {
               <View>
                 <Text style={styles.upcoming}>Наскоро</Text>
                 <Text style={styles.sectionSubtitle}>
-                  {activeCategory === 'All' ? 'Избрано за твојот вкус' : activeCategory}
+                  {activeCategory === 'All' ? 'Избрано за твојот вкус' : categoryLabel(activeCategory)}
                 </Text>
               </View>
               <Text style={styles.eventCount}>{displayEvents.length} настани</Text>
@@ -371,7 +383,7 @@ export default function HomeScreen() {
               {displayEvents.slice(0, 3).map((event) => (
                 <Pressable
                   key={event.id}
-                  accessibilityLabel={`Open ${event.title}`}
+                  accessibilityLabel={`Отвори ${event.title}`}
                   onPress={() => router.push({ pathname: '/event-details', params: { id: event.id } })}
                   style={styles.miniCard}
                 >
@@ -410,7 +422,7 @@ function ClerkUserAvatar() {
 
   return user?.imageUrl ? (
     <Image
-      accessibilityLabel="Profile photo"
+      accessibilityLabel="Профилна фотографија"
       style={styles.profile}
       source={{ uri: user.imageUrl }}
     />
@@ -435,7 +447,7 @@ function EventCard({ event, index }: { event: Record<string, any>; index: number
         <View style={styles.imageShade} />
         <View style={styles.cardTop}>
           <View style={styles.pricePill}>
-            <Text style={styles.priceText}>{event.price ? `${event.price} МКД` : 'Free'}</Text>
+            <Text style={styles.priceText}>{event.price ? `${event.price} МКД` : 'Бесплатно'}</Text>
           </View>
           <Pressable style={styles.heart}>
             <Ionicons name="heart" size={21} color="#fff" />
@@ -451,7 +463,7 @@ function EventCard({ event, index }: { event: Record<string, any>; index: number
               />
             ))}
           </View>
-          <Text style={styles.joined}>{event.rsvp_count ?? 150}+ Joined</Text>
+          <Text style={styles.joined}>{event.rsvp_count ?? 150}+ пријавени</Text>
           <Text numberOfLines={2} style={styles.eventTitle}>
             {event.title}
           </Text>

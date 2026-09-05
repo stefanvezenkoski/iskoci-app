@@ -26,48 +26,48 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2;
 
 export const AVAILABLE_CATEGORIES = [
-  { id: 'art', label: 'Art', icon: '🎨' },
-  { id: 'business', label: 'Business', icon: '💼' },
-  { id: 'travel', label: 'Travel', icon: '✈️' },
-  { id: 'family', label: 'Family', icon: '⭐' },
-  { id: 'sports', label: 'Sports', icon: '🏉' },
-  { id: 'hobbies', label: 'Hobbies', icon: '🎭' },
-  { id: 'community', label: 'Community', icon: '👥' },
-  { id: 'games', label: 'Games', icon: '🎲' },
-  { id: 'education', label: 'Education', icon: '📖' },
-  { id: 'music', label: 'Music', icon: '🎵' },
-  { id: 'outings', label: 'Outings', icon: '🎉' },
-  { id: 'coffee', label: 'Coffee Culture', icon: '☕' },
+  { id: 'art', label: 'Уметност', eventCategory: 'Art', icon: '🎨' },
+  { id: 'business', label: 'Бизнис', eventCategory: 'Business', icon: '💼' },
+  { id: 'travel', label: 'Патување', eventCategory: 'Travel', icon: '✈️' },
+  { id: 'family', label: 'Семејство', eventCategory: 'Family', icon: '⭐' },
+  { id: 'sports', label: 'Спорт', eventCategory: 'Sports', icon: '🏉' },
+  { id: 'hobbies', label: 'Хобија', eventCategory: 'Hobbies', icon: '🎭' },
+  { id: 'community', label: 'Заедница', eventCategory: 'Community', icon: '👥' },
+  { id: 'games', label: 'Игри', eventCategory: 'Games', icon: '🎲' },
+  { id: 'education', label: 'Образование', eventCategory: 'Education', icon: '📖' },
+  { id: 'music', label: 'Музика', eventCategory: 'Music', icon: '🎵' },
+  { id: 'outings', label: 'Излегувања', eventCategory: 'Outings', icon: '🎉' },
+  { id: 'coffee', label: 'Кафе-култура', eventCategory: 'Coffee Culture', icon: '☕' },
 ];
 
 const INTRO_SLIDES = [
   {
     id: 'explore',
     image: require('../assets/images/onboarding-1.png'),
-    title: "See what's happening\n👀around you",
+    title: 'Откриј што се случува\n👀околу тебе',
     subtitle:
-      'From concerts to tech meetups, art shows to sports events - find what excites you',
-    buttonLabel: 'Next',
+      'Од концерти и технолошки средби до изложби и спортски настани — пронајди го тоа што те возбудува.',
+    buttonLabel: 'Следно',
   },
   {
     id: 'crew',
     image: {
       uri: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1000&q=85',
     },
-    title: 'Find your crew &\n🎉never go alone',
+    title: 'Пронајди ја својата екипа\n🎉и не оди сам',
     subtitle:
-      'Connect with people heading to the same vibes. RSVP, chat, and make real memories.',
-    buttonLabel: 'Next',
+      'Поврзи се со луѓе што одат на исти настани. Пријави се, запознај се и создај спомени.',
+    buttonLabel: 'Следно',
   },
   {
     id: 'host',
     image: {
       uri: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1000&q=85',
     },
-    title: 'Host your own vibe\n⚡in seconds',
+    title: 'Организирај свој настан\n⚡за миг',
     subtitle:
-      'Create events, invite friends, and share your passion with the city of Skopje.',
-    buttonLabel: 'Continue to interests',
+      'Создај настан, покани пријатели и сподели ја својата страст со Скопје.',
+    buttonLabel: 'Продолжи кон интереси',
   },
 ];
 
@@ -100,7 +100,7 @@ export default function OnboardingScreen() {
 
       const selectedLabels = AVAILABLE_CATEGORIES.filter((c) =>
         selectedCategories.includes(c.id)
-      ).map((c) => c.label);
+      ).map((c) => c.eventCategory);
       await SecureStore.setItemAsync(
         USER_CATEGORIES_STORAGE_KEY,
         JSON.stringify(selectedLabels)
@@ -151,7 +151,7 @@ export default function OnboardingScreen() {
         </View>
 
         <Pressable hitSlop={12} onPress={handleSkip} style={styles.skipButton}>
-          <Text style={styles.skipText}>{isCategoryStep ? 'Done' : 'Skip'}</Text>
+          <Text style={styles.skipText}>{isCategoryStep ? 'Готово' : 'Прескокни'}</Text>
         </Pressable>
       </View>
 
@@ -195,7 +195,7 @@ export default function OnboardingScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.categoryHeader}>
-            <Text style={styles.categoryTitle}>Choose Category's</Text>
+            <Text style={styles.categoryTitle}>Одбери категории</Text>
             <Text style={styles.categorySubtitle}>
               Одбери ги твоите омилени интереси за персонализиран фокус на настани
             </Text>
@@ -254,10 +254,10 @@ export default function OnboardingScreen() {
               styles.actionButton,
               pressed && styles.actionButtonPressed,
             ]}
-            accessibilityLabel={isCategoryStep ? 'Get Started' : 'Next'}
+            accessibilityLabel={isCategoryStep ? 'Започни' : 'Следно'}
           >
             <Text style={styles.actionButtonText}>
-              {isCategoryStep ? 'Get Started' : INTRO_SLIDES[currentStep].buttonLabel}
+              {isCategoryStep ? 'Започни' : INTRO_SLIDES[currentStep].buttonLabel}
             </Text>
           </Pressable>
         </View>

@@ -10,7 +10,7 @@ import { AmbientBackground } from '@/components/ambient-background';
 
 const TEAL = '#63E6DC';
 const VIOLET = '#A96BDE';
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAYS = ['Нед', 'Пон', 'Вто', 'Сре', 'Чет', 'Пет', 'Саб'];
 type CalendarEvent = Record<string, any>;
 
 type CalendarCell = {
@@ -49,7 +49,7 @@ export default function CalendarScreen() {
   const eventsByDay = useMemo(() => groupEventsByDay(events, viewDate.getFullYear(), viewDate.getMonth()), [events, viewDate]);
   const selectedEvents = eventsForDate(events, selectedDate);
   const avatarInitials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}` || 'ME';
-  const monthLabel = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthLabel = viewDate.toLocaleDateString('mk-MK', { month: 'long', year: 'numeric' });
 
   const changeMonth = (amount: number) => {
     const nextDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + amount, 1);
@@ -68,24 +68,24 @@ export default function CalendarScreen() {
       <AmbientBackground />
       <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: palette.text }]}>Events Calendar</Text>
+          <Text style={[styles.title, { color: palette.text }]}>Календар на настани</Text>
           <View style={styles.headerActions}>
-            <Pressable accessibilityLabel="Notifications" style={styles.notificationButton}>
+            <Pressable accessibilityLabel="Известувања" style={styles.notificationButton}>
               <Ionicons name="notifications-outline" size={23} color={palette.text} />
               <View style={styles.notificationDot} />
             </Pressable>
-            <Pressable accessibilityLabel="Open profile" onPress={() => router.push('/profile')}>
+            <Pressable accessibilityLabel="Отвори профил" onPress={() => router.push('/profile')}>
               {user?.imageUrl ? <Image source={{ uri: user.imageUrl }} style={styles.headerAvatar} /> : <View style={[styles.headerAvatar, styles.avatarFallback]}><Text style={styles.avatarText}>{avatarInitials.toUpperCase()}</Text></View>}
             </Pressable>
           </View>
         </View>
 
         <View style={styles.monthToolbar}>
-          <Pressable accessibilityLabel="Previous month" onPress={() => changeMonth(-1)} style={styles.arrowButton}><Ionicons name="chevron-back" size={19} color={palette.text} /></Pressable>
-          <Pressable accessibilityLabel="Choose current month" onPress={goToToday}><Text style={[styles.monthTitle, { color: palette.text }]}>{monthLabel}</Text></Pressable>
-          <Pressable accessibilityLabel="Next month" onPress={() => changeMonth(1)} style={styles.arrowButton}><Ionicons name="chevron-forward" size={19} color={palette.text} /></Pressable>
+          <Pressable accessibilityLabel="Претходен месец" onPress={() => changeMonth(-1)} style={styles.arrowButton}><Ionicons name="chevron-back" size={19} color={palette.text} /></Pressable>
+          <Pressable accessibilityLabel="Избери го тековниот месец" onPress={goToToday}><Text style={[styles.monthTitle, { color: palette.text }]}>{monthLabel}</Text></Pressable>
+          <Pressable accessibilityLabel="Следен месец" onPress={() => changeMonth(1)} style={styles.arrowButton}><Ionicons name="chevron-forward" size={19} color={palette.text} /></Pressable>
         </View>
-        <Pressable onPress={goToToday} style={styles.todayButton}><Text style={styles.todayText}>Today</Text></Pressable>
+        <Pressable onPress={goToToday} style={styles.todayButton}><Text style={styles.todayText}>Денес</Text></Pressable>
 
         <View style={styles.weekRow}>{WEEKDAYS.map((day) => <Text key={day} style={[styles.weekday, { color: palette.text }]}>{day}</Text>)}</View>
         <View style={styles.grid}>
@@ -97,8 +97,8 @@ export default function CalendarScreen() {
         </View>
 
         <View style={styles.selectedHeader}>
-          <Text style={[styles.selectedTitle, { color: palette.text }]}>Events on {selectedDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</Text>
-          <Text style={[styles.selectedCount, { color: palette.muted }]}>{selectedEvents.length} {selectedEvents.length === 1 ? 'event' : 'events'}</Text>
+          <Text style={[styles.selectedTitle, { color: palette.text }]}>Настани на {selectedDate.toLocaleDateString('mk-MK', { month: 'long', day: 'numeric' })}</Text>
+          <Text style={[styles.selectedCount, { color: palette.muted }]}>{selectedEvents.length} {selectedEvents.length === 1 ? 'настан' : 'настани'}</Text>
         </View>
         {selectedEvents.length > 0 ? selectedEvents.map((event) => (
           <Pressable key={event.id} onPress={() => router.push({ pathname: '/event-details', params: { id: event.id } })} style={[styles.eventRow, { backgroundColor: palette.panel, borderColor: palette.line }]}>
@@ -106,7 +106,7 @@ export default function CalendarScreen() {
             <View style={styles.eventCopy}><Text style={[styles.eventTime, { color: palette.muted }]}>{eventTime(event.date_start)}</Text><Text numberOfLines={1} style={[styles.eventTitle, { color: palette.text }]}>{event.title}</Text><Text numberOfLines={1} style={[styles.eventLocation, { color: palette.muted }]}>{event.location}</Text></View>
             <Ionicons name="chevron-forward" size={18} color={palette.muted} />
           </Pressable>
-        )) : <View style={[styles.emptyState, { borderColor: palette.line }]}><Ionicons name="calendar-outline" size={22} color={TEAL} /><Text style={[styles.emptyText, { color: palette.muted }]}>No events scheduled for this day.</Text></View>}
+        )) : <View style={[styles.emptyState, { borderColor: palette.line }]}><Ionicons name="calendar-outline" size={22} color={TEAL} /><Text style={[styles.emptyText, { color: palette.muted }]}>Нема закажани настани за овој ден.</Text></View>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -115,7 +115,7 @@ export default function CalendarScreen() {
 function CalendarDay({ day, events, isSelected, palette, onPress }: { day: CalendarCell; events: CalendarEvent[]; isSelected: boolean; palette: Record<string, string>; onPress: () => void }) {
   const eventImage = events[0]?.image_url;
   return (
-    <Pressable accessibilityLabel={day.date ? `Day ${day.date}` : 'Empty calendar day'} disabled={!day.date} onPress={onPress} style={styles.dayCell}>
+    <Pressable accessibilityLabel={day.date ? `Ден ${day.date}` : 'Празен ден во календарот'} disabled={!day.date} onPress={onPress} style={styles.dayCell}>
       {eventImage ? <Image source={{ uri: eventImage }} style={[styles.dayCircle, isSelected && styles.selectedCircle]} /> : <View style={[styles.dayCircle, { borderColor: isSelected ? TEAL : palette.line, backgroundColor: isSelected ? TEAL : 'transparent' }]} />}
       <Text style={[styles.dayNumber, { color: isSelected ? '#08100F' : palette.text }]}>{day.date ?? ''}</Text>
       {events.length > 1 ? <View style={styles.eventDot} /> : null}
@@ -145,7 +145,7 @@ function eventsForDate(events: CalendarEvent[], date: Date) {
 }
 
 function eventTime(date: string) {
-  return new Date(date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return new Date(date).toLocaleTimeString('mk-MK', { hour: '2-digit', minute: '2-digit' });
 }
 
 const styles = StyleSheet.create({

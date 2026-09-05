@@ -1,0 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { AmbientBackground } from '@/components/ambient-background';
+import { getSubmittedEvents } from '@/lib/event-storage';
+
+export default function MyEventsScreen() {
+  const [events, setEvents] = useState<Record<string, any>[]>([]);
+  useFocusEffect(useCallback(() => { getSubmittedEvents().then(setEvents); }, []));
+  return <SafeAreaView style={styles.safeArea}><AmbientBackground /><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.header}><Pressable onPress={() => router.back()} hitSlop={12}><Ionicons name="chevron-back" size={26} color="#FFFFFF" /></Pressable><Text style={styles.title}>Мои настани</Text><View style={styles.headerSpacer} /></View>
+    <Text style={styles.subtitle}>Листа на настаните што си ги испратил</Text>
+    {events.length === 0 ? <View style={styles.empty}><Ionicons name="calendar-outline" size={36} color="#63E6DC" /><Text style={styles.emptyTitle}>Немаш испратени настани</Text><Text style={styles.emptyText}>Креирај настан и тој ќе се појави тука заедно со неговиот статус.</Text><Pressable onPress={() => router.push('/create-event')} style={styles.createButton}><Text style={styles.createButtonText}>Креирај настан</Text></Pressable></View> : events.map((event) => <View key={event.id} style={styles.card}><Image source={{ uri: event.image_url ?? event.featured_image }} style={styles.image} /><View style={styles.cardBody}><View style={styles.row}><Text numberOfLines={1} style={styles.cardTitle}>{event.title}</Text><View style={[styles.status, event.status === 'published' && styles.publishedStatus]}><Text style={[styles.statusText, event.status === 'published' && styles.publishedStatusText]}>{event.status === 'published' ? 'Објавен' : 'На преглед'}</Text></View></View><Text numberOfLines={1} style={styles.meta}>{new Date(event.date_start).toLocaleDateString('mk-MK', { day: 'numeric', month: 'short' })} • {event.location}</Text></View></View>)}
+  </ScrollView></SafeAreaView>;
+}
+
+const styles = StyleSheet.create({ safeArea: { flex: 1, backgroundColor: '#090C0C' }, content: { padding: 20, paddingBottom: 80 }, header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }, headerSpacer: { width: 26 }, title: { color: '#FFFFFF', fontSize: 22, fontWeight: '800' }, subtitle: { color: '#8C9A97', fontSize: 14, marginTop: 8, marginBottom: 24 }, empty: { backgroundColor: '#121716', borderRadius: 24, padding: 28, alignItems: 'center', marginTop: 18 }, emptyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '800', marginTop: 14 }, emptyText: { color: '#A7B0AE', textAlign: 'center', lineHeight: 20, marginTop: 7 }, createButton: { backgroundColor: '#63E6DC', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 14, marginTop: 20 }, createButtonText: { color: '#090C0C', fontWeight: '800' }, card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#121716', padding: 10, borderRadius: 20, marginBottom: 12 }, image: { width: 64, height: 64, borderRadius: 14, backgroundColor: '#203C3A' }, cardBody: { flex: 1 }, row: { flexDirection: 'row', alignItems: 'center', gap: 8 }, cardTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', flex: 1 }, meta: { color: '#8C9A97', fontSize: 12, marginTop: 6 }, status: { backgroundColor: 'rgba(255,184,0,0.14)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3 }, publishedStatus: { backgroundColor: 'rgba(99,230,220,0.15)' }, statusText: { color: '#FFB800', fontSize: 10, fontWeight: '800' }, publishedStatusText: { color: '#63E6DC' } });
