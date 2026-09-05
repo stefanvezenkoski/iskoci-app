@@ -1,12 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Location from 'expo-location';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
     Alert,
     Image,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     Pressable,
     ScrollView,
@@ -16,6 +18,7 @@ import {
     TextInput,
     View,
 } from 'react-native';
+import MapView, { type MapPressEvent, Marker } from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
@@ -26,6 +29,13 @@ const CATEGORIES = [
   { id: '55555555-5555-4555-8555-555555555555', label: 'Coffee Culture', icon: 'cafe' },
   { id: '66666666-6666-4666-8666-666666666666', label: 'Community', icon: 'people' },
 ];
+
+const SKOPJE_REGION = {
+  latitude: 41.9981,
+  longitude: 21.4254,
+  latitudeDelta: 0.08,
+  longitudeDelta: 0.08,
+};
 
 export default function CreateEventScreen() {
   const insets = useSafeAreaInsets();
@@ -40,6 +50,12 @@ export default function CreateEventScreen() {
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [eventCoordinate, setEventCoordinate] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [mapDraftCoordinate, setMapDraftCoordinate] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [mapDraftLocation, setMapDraftLocation] = useState('');
+  const canPublish = Boolean(title.trim() && eventCoordinate);
 
   const handleNext = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -60,48 +76,99 @@ export default function CreateEventScreen() {
     }
   };
 
-  const handlePublish = async () => {
-    if (!title.trim()) {
-      Alert.alert('Missing information', 'Please provide a title for your event.');
+  const openMapPicker = () => {
+    setMapDraftCoordinate(eventCoordinate);
+    setMapDraftLocation(location);
+    setIsMapPickerOpen(true);
+  };
+
+  const handleMapPress = async (event: MapPressEvent) => {
+    const coordinate = event.nativeEvent.coordinate;
+    setMapDraftCoordinate(coordinate);
+    await Haptics.selectionAsync();
+
+    try {
+      const [place] = await Location.reverseGeocodeAsync(coordinate);
+      const address = [place?.name ?? place?.street, place?.city ?? place?.region]
+        .filter(Boolean)
+        .join(', ');
+      setMapDraftLocation(address || 'Pinned location in Skopje');
+    } catch {
+      setMapDraftLocation('Pinned location in Skopje');
+    }
+  };
+
+  const confirmMapLocation = async () => {
+    if (!mapDraftCoordinate) {
+      Alert.alert('Drop a pin', 'Tap a point on the map before continuing.');
       return;
     }
-    if (!location.trim()) {
-      Alert.alert('Missing information', 'Please provide a location.');
+
+    setEventCoordinate(mapDraftCoordinate);
+    setLocation(mapDraftLocation || 'Pinned location in Skopje');
+    setIsMapPickerOpen(false);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const handlePublish = async () => {
+    if (!canPublish || !eventCoordinate) {
+      Alert.alert('Add the essentials', 'Please add an event title and choose a location on the map.');
+      return;
+    }
+
+    const startDateTime = new Date(`${dateStr}T${timeStr}:00.000Z`);
+    const eventPrice = price ? Number(price.replace(',', '.')) : 0;
+
+    if (Number.isNaN(startDateTime.getTime())) {
+      Alert.alert('Check the date', 'Use the format YYYY-MM-DD and a time like 20:00.');
+      return;
+    }
+
+    if (Number.isNaN(eventPrice) || eventPrice < 0) {
+      Alert.alert('Check the price', 'Use a positive number, or leave it empty for a free event.');
       return;
     }
 
     setIsSubmitting(true);
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      if (!supabase) {
+        throw new Error('Event publishing is not configured on this device.');
+      }
 
-    const startDateTime = new Date(`${dateStr}T${timeStr}:00.000Z`).toISOString();
-    const eventPrice = price ? parseFloat(price) : 0;
-
-    if (supabase) {
       const { error } = await supabase.from('events').insert({
         title: title.trim(),
         description: description.trim() || 'Join us for an exciting event!',
         category_id: selectedCategory,
         location: location.trim(),
-        date_start: startDateTime,
+        latitude: eventCoordinate.latitude,
+        longitude: eventCoordinate.longitude,
+        date_start: startDateTime.toISOString(),
         price: eventPrice,
         guest_limit: 100,
-        status: 'published',
+        status: 'pending',
         featured_image:
           'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80',
       });
 
       if (error) {
-        console.warn('Error inserting event:', error.message);
+        throw error;
       }
-    }
 
-    setIsSubmitting(false);
-    Alert.alert('Event Created! 🎉', 'Your event has been successfully published.', [
-      {
-        text: 'View Home',
-        onPress: () => router.replace('/(tabs)'),
-      },
-    ]);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Event submitted! 🎉', 'Your event is ready for review.', [
+        {
+          text: 'View Home',
+          onPress: () => router.replace('/(tabs)'),
+        },
+      ]);
+    } catch (error) {
+      Alert.alert(
+        'Couldn’t publish yet',
+        error instanceof Error ? error.message : 'Please try again in a moment.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // STEP 1: Exact UI from User's Reference Screenshot
@@ -229,7 +296,7 @@ export default function CreateEventScreen() {
         </View>
 
         <Pressable onPress={handleBack} hitSlop={12} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </Pressable>
       </View>
 
@@ -241,20 +308,32 @@ export default function CreateEventScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.formHeading}>Event Details</Text>
-        <Text style={styles.formSubheading}>
-          Fill in the details to publish your new event.
-        </Text>
+        <View style={styles.formIntro}>
+          <View style={styles.formIntroBadge}>
+            <View style={styles.formIntroDot} />
+            <Text style={styles.formIntroBadgeText}>YOUR EVENT</Text>
+          </View>
+          <Text style={styles.formHeading}>Make it feel unmissable.</Text>
+          <Text style={styles.formSubheading}>
+            Add the essential details now. You can always refine the rest later.
+          </Text>
+        </View>
 
         {/* Title Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>EVENT TITLE</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.inputLabel}>EVENT TITLE</Text>
+            <Text style={styles.requiredLabel}>REQUIRED</Text>
+          </View>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'title' && styles.textInputFocused]}
             placeholder="e.g. Rooftop Sunset Beats"
             placeholderTextColor="#6B7280"
             value={title}
             onChangeText={setTitle}
+            onFocus={() => setFocusedField('title')}
+            onBlur={() => setFocusedField(null)}
+            returnKeyType="next"
           />
         </View>
 
@@ -270,6 +349,11 @@ export default function CreateEventScreen() {
                   onPress={() => setSelectedCategory(cat.id)}
                   style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
                 >
+                  <Ionicons
+                    name={cat.icon as 'sparkles' | 'football' | 'cafe' | 'people'}
+                    size={15}
+                    color={isSelected ? '#07100F' : '#63E6DC'}
+                  />
                   <Text style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}>
                     {cat.label}
                   </Text>
@@ -279,16 +363,30 @@ export default function CreateEventScreen() {
           </ScrollView>
         </View>
 
-        {/* Location Input */}
+        {/* Location picker */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>LOCATION</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="e.g. City Park, Skopje"
-            placeholderTextColor="#6B7280"
-            value={location}
-            onChangeText={setLocation}
-          />
+          <View style={styles.labelRow}>
+            <Text style={styles.inputLabel}>EVENT LOCATION</Text>
+            <Text style={styles.requiredLabel}>REQUIRED</Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Choose event location on map"
+            onPress={openMapPicker}
+            style={({ pressed }) => [styles.mapTrigger, pressed && styles.mapTriggerPressed]}
+          >
+            <View style={styles.mapTriggerIcon}>
+              <Ionicons name="location" size={14} color="#63E6DC" />
+            </View>
+            <View style={styles.mapTriggerCopy}>
+              <Text style={styles.mapTriggerTitle}>
+                {eventCoordinate ? 'Location pinned' : 'Drop a pin on the map'}
+              </Text>
+              <Text numberOfLines={1} style={styles.mapTriggerSubtitle}>
+                {location || 'Open the map and choose the exact spot'}
+              </Text>
+            </View>
+            <Ionicons name="map-outline" size={22} color="#FAF9F8" />
+          </Pressable>
         </View>
 
         {/* Date & Time Row */}
@@ -296,21 +394,27 @@ export default function CreateEventScreen() {
           <View style={[styles.inputGroup, { flex: 1 }]}>
             <Text style={styles.inputLabel}>DATE (YYYY-MM-DD)</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, focusedField === 'date' && styles.textInputFocused]}
               value={dateStr}
               onChangeText={setDateStr}
               placeholder="2026-09-12"
               placeholderTextColor="#6B7280"
+              onFocus={() => setFocusedField('date')}
+              onBlur={() => setFocusedField(null)}
+              keyboardType="numbers-and-punctuation"
             />
           </View>
           <View style={[styles.inputGroup, { flex: 0.8 }]}>
             <Text style={styles.inputLabel}>TIME</Text>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, focusedField === 'time' && styles.textInputFocused]}
               value={timeStr}
               onChangeText={setTimeStr}
               placeholder="20:00"
               placeholderTextColor="#6B7280"
+              onFocus={() => setFocusedField('time')}
+              onBlur={() => setFocusedField(null)}
+              keyboardType="numbers-and-punctuation"
             />
           </View>
         </View>
@@ -319,44 +423,111 @@ export default function CreateEventScreen() {
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>PRICE (LEAVE EMPTY FOR FREE)</Text>
           <TextInput
-            style={styles.textInput}
+            style={[styles.textInput, focusedField === 'price' && styles.textInputFocused]}
             placeholder="e.g. 250"
             placeholderTextColor="#6B7280"
             value={price}
             onChangeText={setPrice}
             keyboardType="numeric"
+            onFocus={() => setFocusedField('price')}
+            onBlur={() => setFocusedField(null)}
           />
         </View>
 
         {/* Description Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>DESCRIPTION</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.inputLabel}>DESCRIPTION</Text>
+            <Text style={styles.characterCount}>{description.length}/280</Text>
+          </View>
           <TextInput
-            style={[styles.textInput, styles.textArea]}
+            style={[
+              styles.textInput,
+              styles.textArea,
+              focusedField === 'description' && styles.textInputFocused,
+            ]}
             placeholder="Tell people what to expect at your event..."
             placeholderTextColor="#6B7280"
             value={description}
             onChangeText={setDescription}
             multiline
             numberOfLines={4}
+            maxLength={280}
+            onFocus={() => setFocusedField('description')}
+            onBlur={() => setFocusedField(null)}
           />
         </View>
 
         {/* Publish Button */}
         <Pressable
           onPress={handlePublish}
-          disabled={isSubmitting}
+          disabled={!canPublish || isSubmitting}
           style={({ pressed }) => [
             styles.publishButton,
             pressed && styles.publishButtonPressed,
-            isSubmitting && styles.publishButtonDisabled,
+            (!canPublish || isSubmitting) && styles.publishButtonDisabled,
           ]}
         >
           <Text style={styles.publishButtonText}>
-            {isSubmitting ? 'Publishing...' : 'Publish Event'}
+            {isSubmitting ? 'Publishing...' : canPublish ? 'Submit event' : 'Add title & map pin'}
           </Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsMapPickerOpen(false)}
+        presentationStyle="fullScreen"
+        visible={isMapPickerOpen}
+      >
+        <View style={styles.mapModal}>
+          <MapView
+            initialRegion={
+              mapDraftCoordinate
+                ? { ...mapDraftCoordinate, latitudeDelta: 0.018, longitudeDelta: 0.018 }
+                : SKOPJE_REGION
+            }
+            onPress={handleMapPress}
+            rotateEnabled={false}
+            style={styles.fullScreenMap}
+            zoomEnabled
+          >
+            {mapDraftCoordinate ? <Marker coordinate={mapDraftCoordinate} pinColor="#63E6DC" /> : null}
+          </MapView>
+
+          <View style={[styles.mapModalHeader, { paddingTop: insets.top + 12 }]}>
+            <Pressable onPress={() => setIsMapPickerOpen(false)} style={styles.mapModalIconButton}>
+              <Ionicons name="close" size={23} color="#FFFFFF" />
+            </Pressable>
+            <View style={styles.mapModalTitleWrap}>
+              <Text style={styles.mapModalEyebrow}>EVENT LOCATION</Text>
+              <Text style={styles.mapModalTitle}>Drop your pin</Text>
+            </View>
+            <View style={styles.mapModalIconButton} />
+          </View>
+
+          <View style={[styles.mapModalFooter, { paddingBottom: Math.max(insets.bottom + 14, 24) }]}>
+            <View style={styles.mapModalLocation}>
+              <Ionicons name="location" size={17} color="#63E6DC" />
+              <Text numberOfLines={1} style={styles.mapModalLocationText}>
+                {mapDraftLocation || 'Tap the map to place your event pin'}
+              </Text>
+            </View>
+            <Pressable
+              disabled={!mapDraftCoordinate}
+              onPress={confirmMapLocation}
+              style={({ pressed }) => [
+                styles.mapDoneButton,
+                !mapDraftCoordinate && styles.mapDoneButtonDisabled,
+                pressed && styles.mapDoneButtonPressed,
+              ]}
+            >
+              <Text style={styles.mapDoneButtonText}>Done</Text>
+              <Ionicons name="arrow-forward" size={18} color="#07100F" />
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -522,6 +693,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 24,
   },
+  formIntro: {
+    marginBottom: 26,
+    padding: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 230, 220, 0.16)',
+    backgroundColor: 'rgba(19, 28, 27, 0.78)',
+  },
+  formIntroBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(99, 230, 220, 0.12)',
+    marginBottom: 12,
+  },
+  formIntroDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#63E6DC',
+  },
+  formIntroBadgeText: {
+    color: '#63E6DC',
+    fontSize: 10,
+    letterSpacing: 1.1,
+    fontWeight: '800',
+    fontFamily: 'Wix Madefor Text',
+  },
   formHeading: {
     color: '#FFFFFF',
     fontSize: 28,
@@ -534,14 +737,131 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 14.5,
     fontFamily: 'Wix Madefor Text',
-    marginBottom: 24,
+    marginTop: 6,
   },
   inputGroup: {
     marginBottom: 20,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   rowInputs: {
     flexDirection: 'row',
     gap: 12,
+  },
+  mapTrigger: {
+    minHeight: 74,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 230, 220, 0.25)',
+    backgroundColor: '#161F1D',
+  },
+  mapTriggerPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
+  mapTriggerIcon: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(99, 230, 220, 0.13)',
+  },
+  mapTriggerCopy: { flex: 1, minWidth: 0 },
+  mapTriggerTitle: {
+    color: '#F7FAF9',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily: 'Wix Madefor Text',
+  },
+  mapTriggerSubtitle: {
+    color: '#82908D',
+    fontSize: 12,
+    marginTop: 3,
+    fontFamily: 'Wix Madefor Text',
+  },
+  mapModal: { flex: 1, backgroundColor: '#0A100F' },
+  fullScreenMap: { flex: 1 },
+  mapModalHeader: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    left: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    backgroundColor: 'rgba(7, 14, 13, 0.9)',
+  },
+  mapModalIconButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  mapModalTitleWrap: { alignItems: 'center' },
+  mapModalEyebrow: {
+    color: '#63E6DC',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    fontFamily: 'Wix Madefor Text',
+  },
+  mapModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    marginTop: 2,
+    fontFamily: 'Wix Madefor Text',
+  },
+  mapModalFooter: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    backgroundColor: 'rgba(7, 14, 13, 0.94)',
+  },
+  mapModalLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  mapModalLocationText: {
+    flex: 1,
+    color: '#E7ECEA',
+    fontSize: 13,
+    fontFamily: 'Wix Madefor Text',
+  },
+  mapDoneButton: {
+    height: 54,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 17,
+    backgroundColor: '#63E6DC',
+  },
+  mapDoneButtonDisabled: { opacity: 0.48 },
+  mapDoneButtonPressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
+  mapDoneButtonText: {
+    color: '#07100F',
+    fontSize: 16,
+    fontWeight: '900',
+    fontFamily: 'Wix Madefor Text',
   },
   inputLabel: {
     color: '#9CA3AF',
@@ -549,6 +869,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
     marginBottom: 8,
+    fontFamily: 'Wix Madefor Text',
+  },
+  requiredLabel: {
+    color: '#63E6DC',
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+    fontFamily: 'Wix Madefor Text',
+  },
+  characterCount: {
+    color: '#707A78',
+    fontSize: 11,
     fontFamily: 'Wix Madefor Text',
   },
   textInput: {
@@ -561,6 +893,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontFamily: 'Wix Madefor Text',
+  },
+  textInputFocused: {
+    borderColor: '#63E6DC',
+    backgroundColor: '#1B2322',
+    shadowColor: '#63E6DC',
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 2,
   },
   textArea: {
     height: 100,
@@ -578,6 +919,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 9,
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
   categoryChipSelected: {
     backgroundColor: '#FFFFFF',

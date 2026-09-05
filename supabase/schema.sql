@@ -48,6 +48,8 @@ create table if not exists public.events (
   description text,
   category_id uuid references public.categories(id),
   location text,
+  latitude double precision check (latitude between -90 and 90),
+  longitude double precision check (longitude between -180 and 180),
   date_start timestamptz not null,
   date_end timestamptz,
   recurrence text not null default 'none' check (recurrence in ('none','weekly','custom')),

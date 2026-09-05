@@ -2,16 +2,20 @@ import { useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
   ImageBackground,
+  Keyboard,
   Pressable,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -45,6 +49,12 @@ export default function HomeScreen() {
   const [activeCategory, setActiveCategory] = useState('All');
   const [events, setEvents] = useState<Record<string, any>[]>([]);
   const [userInterests, setUserInterests] = useState<string[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchProgress] = useState(() => new Animated.Value(0));
+  const searchInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!isUserLoaded) return;
@@ -89,12 +99,49 @@ export default function HomeScreen() {
     fetchEvents().then((items) => {
       if (subscribed) {
         setEvents(items);
+        setIsLoadingEvents(false);
       }
     });
     return () => {
       subscribed = false;
     };
   }, []);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    const items = await fetchEvents();
+    setEvents(items);
+    setIsRefreshing(false);
+  };
+
+  const openSearch = () => {
+    if (isSearchOpen) {
+      searchInputRef.current?.focus();
+      return;
+    }
+
+    setIsSearchOpen(true);
+    Animated.spring(searchProgress, {
+      toValue: 1,
+      damping: 18,
+      stiffness: 230,
+      mass: 0.7,
+      useNativeDriver: false,
+    }).start();
+    setTimeout(() => searchInputRef.current?.focus(), 140);
+  };
+
+  const closeSearch = () => {
+    Keyboard.dismiss();
+    Animated.timing(searchProgress, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: false,
+    }).start(() => {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    });
+  };
 
   // Algorithm: Put user's chosen categories at the front of the category bar
   const categories = useMemo(() => {
@@ -124,21 +171,28 @@ export default function HomeScreen() {
 
   // Algorithm: When 'All' is selected, prioritize events matching user's interests first!
   const displayEvents = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const matchesSearch = (event: Record<string, any>) =>
+      !normalizedQuery ||
+      [event.title, event.location, event.category]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+
     if (activeCategory !== 'All') {
-      return events.filter(
-        (event) => event.category?.toLowerCase() === activeCategory.toLowerCase()
+      return events.filter((event) =>
+        event.category?.toLowerCase() === activeCategory.toLowerCase() && matchesSearch(event)
       );
     }
 
     if (!userInterests || userInterests.length === 0) {
-      return events;
+      return events.filter(matchesSearch);
     }
 
     const interestSet = new Set(userInterests.map((s) => s.toLowerCase()));
     const matching: Record<string, any>[] = [];
     const others: Record<string, any>[] = [];
 
-    events.forEach((event) => {
+    events.filter(matchesSearch).forEach((event) => {
       const cat = (event.category ?? '').toLowerCase();
       if (interestSet.has(cat)) {
         matching.push(event);
@@ -148,13 +202,25 @@ export default function HomeScreen() {
     });
 
     return [...matching, ...others];
-  }, [events, activeCategory, userInterests]);
+  }, [events, activeCategory, searchQuery, userInterests]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
       <AmbientBackground />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#63E6DC"
+            colors={['#63E6DC']}
+            progressBackgroundColor="#1B2120"
+          />
+        }
+      >
         <View style={styles.header}>
           <View style={styles.logoFrame}>
             <View style={styles.logoAura} />
@@ -177,11 +243,61 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={styles.title}>Каде{`\n`}искачаш денес?</Text>
-          <Pressable accessibilityLabel="Search events" style={styles.searchButton}>
+          <View>
+            <Text style={styles.greeting}>Здраво, {user?.firstName || 'пријател'} ✦</Text>
+            <Text style={styles.title}>Каде{`\n`}искачаш денес?</Text>
+          </View>
+          <Pressable
+            accessibilityLabel={isSearchOpen ? 'Focus event search' : 'Search events'}
+            onPress={openSearch}
+            style={styles.searchButton}
+          >
             <Ionicons name="search-outline" size={30} color="#161415" />
           </Pressable>
         </View>
+
+        <Animated.View
+          pointerEvents={isSearchOpen ? 'auto' : 'none'}
+          style={[
+            styles.searchPanel,
+            {
+              height: searchProgress.interpolate({ inputRange: [0, 1], outputRange: [0, 62] }),
+              opacity: searchProgress,
+              transform: [
+                {
+                  translateY: searchProgress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-10, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.searchInputRow}>
+            <Ionicons name="search-outline" size={19} color="#63E6DC" />
+            <TextInput
+              ref={searchInputRef}
+              accessibilityLabel="Search events by title, location, or category"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={setSearchQuery}
+              placeholder="Пребарај настани, места..."
+              placeholderTextColor="#80908D"
+              returnKeyType="search"
+              style={styles.searchInput}
+              value={searchQuery}
+            />
+            {searchQuery ? (
+              <Pressable accessibilityLabel="Clear search" hitSlop={8} onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color="#A8B5B2" />
+              </Pressable>
+            ) : null}
+            <Pressable accessibilityLabel="Close search" hitSlop={8} onPress={closeSearch}>
+              <Ionicons name="arrow-up-outline" size={19} color="#FAF9F8" />
+            </Pressable>
+          </View>
+        </Animated.View>
 
         {/* Priority Focus Category Chips */}
         <ScrollView
@@ -199,7 +315,7 @@ export default function HomeScreen() {
               <Pressable
                 key={category}
                 onPress={() => setActiveCategory(category)}
-                style={styles.categoryChip}
+                style={[styles.categoryChip, isActive && styles.categoryChipActive]}
               >
                 <Text style={[styles.category, isActive && styles.categoryActive]}>
                   {category}
@@ -212,11 +328,20 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
-        {displayEvents.length === 0 ? (
+        {isLoadingEvents ? (
+          <View style={styles.loadingRow} accessibilityLabel="Loading events">
+            <View style={styles.loadingCard} />
+            <View style={[styles.loadingCard, styles.loadingCardSecondary]} />
+          </View>
+        ) : displayEvents.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>No events in this category</Text>
+            <Text style={styles.emptyStateTitle}>
+              {searchQuery ? 'Нема совпаѓања' : 'No events in this category'}
+            </Text>
             <Text style={styles.emptyStateText}>
-              Try another category or add a matching event in Supabase.
+              {searchQuery
+                ? 'Пробај со друг наслов, место или категорија.'
+                : 'Try another category or add a matching event in Supabase.'}
             </Text>
           </View>
         ) : (
@@ -233,15 +358,28 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
 
-            <Text style={styles.upcoming}>Upcoming</Text>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.upcoming}>Наскоро</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {activeCategory === 'All' ? 'Избрано за твојот вкус' : activeCategory}
+                </Text>
+              </View>
+              <Text style={styles.eventCount}>{displayEvents.length} настани</Text>
+            </View>
             <View style={styles.upcomingRow}>
               {displayEvents.slice(0, 3).map((event) => (
-                <View key={event.id} style={styles.miniCard}>
+                <Pressable
+                  key={event.id}
+                  accessibilityLabel={`Open ${event.title}`}
+                  onPress={() => router.push({ pathname: '/event-details', params: { id: event.id } })}
+                  style={styles.miniCard}
+                >
                   <Image source={{ uri: event.image_url }} style={styles.miniImage} />
                   <Text numberOfLines={1} style={styles.miniTitle}>
                     {event.title}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           </>
@@ -417,6 +555,13 @@ const styles = StyleSheet.create({
     maxWidth: 315,
     fontFamily: 'Climate Crisis',
   },
+  greeting: {
+    color: '#8C9A97',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    fontFamily: 'Wix Madefor Text',
+  },
   searchButton: {
     width: 80,
     height: 110,
@@ -425,6 +570,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFCFC',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchPanel: {
+    marginHorizontal: 25,
+    overflow: 'hidden',
+  },
+  searchInputRow: {
+    height: 54,
+    marginTop: 8,
+    paddingHorizontal: 15,
+    gap: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(99,230,220,0.28)',
+    backgroundColor: 'rgba(29,37,36,0.94)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: '#FAF9F8',
+    fontSize: 15,
+    fontFamily: 'Wix Madefor Text',
   },
   categoryRow: {
     paddingLeft: 25,
@@ -437,6 +605,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    paddingHorizontal: 2,
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  categoryChipActive: {
+    borderBottomColor: '#63E6DC',
   },
   category: {
     color: '#908F8E',
@@ -456,10 +631,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#63E6DC',
   },
   cardsRow: { paddingLeft: 20, paddingRight: 4, gap: 13 },
+  loadingRow: { flexDirection: 'row', paddingLeft: 20, gap: 13 },
+  loadingCard: {
+    width: 290,
+    height: 430,
+    borderRadius: 31,
+    backgroundColor: '#1B2120',
+  },
+  loadingCardSecondary: { backgroundColor: '#151A19' },
   card: { width: 290, height: 430, borderRadius: 31, overflow: 'hidden' },
   cardImage: { flex: 1, justifyContent: 'space-between' },
   cardImageRadius: { borderRadius: 31 },
   imageShade: {
+    position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
@@ -516,14 +700,27 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   metaText: { color: '#F0ECE8', fontSize: 13, fontFamily: 'Wix Madefor Text' },
+  sectionHeader: {
+    marginTop: 23,
+    marginBottom: 14,
+    marginHorizontal: 25,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
   upcoming: {
     color: '#FFF',
-    marginLeft: 25,
-    marginTop: 20,
-    marginBottom: 15,
     fontSize: 20,
     fontWeight: '800',
     fontFamily: 'Climate Crisis',
+  },
+  sectionSubtitle: { color: '#8C9A97', fontSize: 12, marginTop: 4, fontFamily: 'Wix Madefor Text' },
+  eventCount: {
+    color: '#63E6DC',
+    fontSize: 12,
+    fontWeight: '800',
+    paddingBottom: 2,
+    fontFamily: 'Wix Madefor Text',
   },
   upcomingRow: { flexDirection: 'row', gap: 11, paddingHorizontal: 20 },
   miniCard: {
